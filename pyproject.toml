@@ -31,5 +31,13 @@ dependencies = [
     "aiosqlite>=0.20.0",
 ]
 
+[project.scripts]
+hybrid-agent = "hybrid_agent.cli.main:run_cli"
+
 [tool.setuptools.packages.find]
-include = ["rag_app*", "rag_frontend*"]
+where = ["src"]
+include = ["hybrid_agent*"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
