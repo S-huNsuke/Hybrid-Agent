@@ -96,50 +96,62 @@ docker-compose down
 Hybrid-Agent/
 ├── src/
 │   └── hybrid_agent/
-│       ├── agent/
-│       │   ├── builder.py          # Agent 构建
-│       │   ├── reviewer/           # 审查模块
-│       │   │   ├── content_reviewer.py
-│       │   │   ├── scorer.py
-│       │   │   └── prompts.py
-│       │   └── tools/              # Agent 工具
-│       │       ├── web_search.py
-│       │       └── document_tools.py
-│       ├── api/
-│       │   ├── main.py             # FastAPI 应用
-│       │   ├── schemas.py          # 数据模型
-│       │   ├── routes/             # 路由
-│       │   │   ├── chat.py
-│       │   │   └── documents.py
-│       │   └── services/
-│       │       └── rag_service.py
-│       ├── core/
-│       │   ├── config.py           # 配置管理
-│       │   ├── database.py         # 数据库
-│       │   ├── document_processor.py
-│       │   ├── rag_system.py      # RAG 系统
-│       │   └── vector.py           # 向量存储
-│       ├── llm/
-│       │   ├── models.py           # 模型定义
-│       │   ├── model_selector.py   # 模型选择器
-│       │   └── reviewer.py         # 回答审查器
-│       ├── web/
-│       │   ├── app.py              # Streamlit 应用
-│       │   ├── components/         # UI 组件
-│       │   │   ├── chat.py
-│       │   │   ├── sidebar.py
-│       │   │   └── theme.py
-│       │   └── utils/
+│       ├── agent/                  # Agent 层
+│       │   ├── __init__.py
+│       │   ├── builder.py         # Agent 构建
+│       │   ├── reviewer/         # 审查模块
+│       │   │   ├── __init__.py
+│       │   │   ├── content_reviewer.py  # 内容审查
+│       │   │   ├── scorer.py     # 评分器
+│       │   │   └── prompts.py    # 审查提示词
+│       │   └── tools/            # Agent 工具
+│       │       ├── __init__.py
+│       │       ├── web_search.py # 网页搜索
+│       │       └── document_tools.py  # 文档工具
+│       ├── api/                   # API 层
+│       │   ├── __init__.py
+│       │   ├── main.py            # FastAPI 应用
+│       │   ├── schemas.py         # 数据模型
+│       │   ├── routes/            # 路由
+│       │   │   ├── __init__.py
+│       │   │   ├── chat.py        # 聊天接口
+│       │   │   └── documents.py  # 文档接口
+│       │   └── services/          # 服务层
+│       │       ├── __init__.py
+│       │       └── rag_service.py # RAG 服务
+│       ├── core/                  # 核心层
+│       │   ├── __init__.py
+│       │   ├── config.py          # 配置管理
+│       │   ├── database.py        # 数据库
+│       │   ├── document_processor.py  # 文档处理
+│       │   ├── rag_system.py     # RAG 系统
+│       │   └── vector.py          # 向量存储
+│       ├── llm/                   # LLM 层
+│       │   ├── __init__.py
+│       │   ├── models.py          # 模型定义
+│       │   ├── model_selector.py  # 模型选择器
+│       │   └── reviewer.py        # 回答审查器
+│       ├── web/                   # Web UI
+│       │   ├── __init__.py
+│       │   ├── app.py             # Streamlit 应用
+│       │   ├── components/        # UI 组件
+│       │   │   ├── __init__.py
+│       │   │   ├── chat.py       # 聊天组件
+│       │   │   ├── sidebar.py    # 侧边栏
+│       │   │   └── theme.py      # 主题
+│       │   └── utils/             # 工具函数
+│       │       ├── __init__.py
 │       │       └── helpers.py
-│       └── cli/
-│           ├── main.py             # CLI 入口
-│           └── streaming.py        # 流式输出
-├── main.py
-├── start.sh
-├── Dockerfile
-├── docker-compose.yml
-├── .dockerignore
-├── pyproject.toml
+│       └── cli/                   # CLI
+│           ├── __init__.py
+│           ├── main.py            # CLI 入口
+│           └── streaming.py       # 流式输出
+├── main.py                        # 项目入口
+├── start.sh                       # 启动脚本
+├── Dockerfile                     # Docker 镜像
+├── docker-compose.yml             # Docker Compose
+├── .dockerignore                  # Docker 忽略文件
+├── pyproject.toml                 # 项目配置
 └── README.md
 ```
 
