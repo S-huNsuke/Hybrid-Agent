@@ -40,6 +40,8 @@ class Settings:
     deepseek_base_url: str | None
     qwen_omni_api_key: str | None
     qwen_omni_base_url: str | None
+    qwen_api_key: str | None
+    qwen_base_url: str | None
     tongyi_embedding_api_key: str | None
     tongyi_embedding_base_url: str | None
     mysql_user: str | None
@@ -85,6 +87,9 @@ def _validate_settings(settings: Settings) -> None:
     
     if not settings.tongyi_embedding_api_key:
         logger.warning("TONGYI_EMBEDDING_API_KEY not set, RAG features may not work")
+    
+    if not settings.qwen_api_key:
+        logger.warning("QWEN_API_KEY not set, reviewer may use fallback credentials")
 
 
 def _read_env() -> Settings:
@@ -96,6 +101,8 @@ def _read_env() -> Settings:
         deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL"),
         qwen_omni_api_key=os.getenv("QWEN_OMNI_API_KEY"),
         qwen_omni_base_url=os.getenv("QWEN_OMNI_BASE_URL"),
+        qwen_api_key=os.getenv("QWEN_API_KEY"),
+        qwen_base_url=os.getenv("QWEN_BASE_URL"),
         tongyi_embedding_api_key=(
             os.getenv("TONGYI_EMBEDDING_API_KEY")
             or os.getenv("DASHSCOPE_API_KEY")

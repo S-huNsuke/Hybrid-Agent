@@ -21,7 +21,7 @@ class VectorStore:
         self.config = config
         self.embeddings = DashScopeEmbeddings(
             dashscope_api_key=config.tongyi_embedding_api_key,
-            model="text-embedding-v3"
+            model="text-embedding-v4"
         )
         
         persist_directory = getattr(config, 'chroma_db_path', './chroma_db')

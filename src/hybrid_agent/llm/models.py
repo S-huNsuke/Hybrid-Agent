@@ -37,7 +37,7 @@ def _create_advanced_model() -> ChatDeepSeek:
     return ChatDeepSeek(
         api_key=settings.deepseek_api_key,
         api_base=settings.deepseek_base_url,
-        model="deepseek-chat",
+        model="deepseek-V3.2",
         temperature=DEFAULT_TEMPERATURE,
         max_tokens=DEFAULT_ADVANCED_MAX_TOKENS,
         request_timeout=DEFAULT_TIMEOUT,
