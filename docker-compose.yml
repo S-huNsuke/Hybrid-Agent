@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hybrid-agent-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      - QWEN_OMNI_API_KEY=${QWEN_OMNI_API_KEY}
+      - QWEN_OMNI_BASE_URL=${QWEN_OMNI_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      - QWEN_API_KEY=${QWEN_API_KEY}
+      - QWEN_BASE_URL=${QWEN_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      - TONGYI_EMBEDDING_API_KEY=${TONGYI_EMBEDDING_API_KEY}
+      - TONGYI_EMBEDDING_BASE_URL=${TONGYI_EMBEDDING_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      - API_KEY=${API_KEY:-your-api-key-here}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8501}
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hybrid-agent-web
+    ports:
+      - "8501:8501"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - API_BASE_URL=http://api:8000
+    volumes:
+      - ./.env:/app/.env:ro
+    restart: unless-stopped
+    depends_on:
+      - api
+
+networks:
+  default:
+    name: hybrid-agent-network

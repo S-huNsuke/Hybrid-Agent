@@ -2,12 +2,14 @@
 
 import json
 import logging
+import uuid
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessageChunk, ToolMessage
 from langchain_core.exceptions import LangChainException
 
 from hybrid_agent.api.schemas import ChatRequest, ChatResponse
 from hybrid_agent.core.rag_system import get_rag_system
+from hybrid_agent.core.config import DEFAULT_SEARCH_K
 from hybrid_agent.llm.model_selector import resolve_model_type
 from hybrid_agent.agent.builder import get_agent_instance
 
@@ -40,7 +42,7 @@ async def chat_stream(request: ChatRequest):
     model_type = resolve_model_type(request.model or "auto")
     
     try:
-        retrieved_docs = rag_system.vector_store.search(request.message, k=4)
+        retrieved_docs = rag_system.vector_store.search(request.message, k=DEFAULT_SEARCH_K)
         sources = []
         for doc in retrieved_docs:
             sources.append({
@@ -52,7 +54,7 @@ async def chat_stream(request: ChatRequest):
             query=request.message,
             use_rag=True,
             model=model_type,
-            k=4
+            k=DEFAULT_SEARCH_K
         ):
             yield f"data: {json.dumps({'content': chunk})}\n\n"
         
@@ -60,10 +62,10 @@ async def chat_stream(request: ChatRequest):
         
     except (KeyError, ValueError) as e:
         logger.error(f"流式聊天参数错误: {str(e)}")
-        yield f"data: {json.dumps({'error': f'参数错误: {str(e)}'})}\n\n"
+        yield f"data: {json.dumps({'error': '参数错误，请检查输入', 'done': True})}\n\n"
     except Exception as e:
-        logger.error(f"流式聊天错误: {str(e)}")
-        yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        logger.error(f"流式聊天错误: {str(e)}", exc_info=True)
+        yield f"data: {json.dumps({'error': '服务器内部错误，请稍后重试', 'done': True})}\n\n"
 
 
 async def chat_stream_with_agent(request: ChatRequest, session_id: str):
@@ -114,20 +116,21 @@ async def chat_stream_with_agent(request: ChatRequest, session_id: str):
         yield f"data: {json.dumps({'done': True})}\n\n"
         
     except LangChainException as e:
-        logger.error(f"Agent 执行失败: {str(e)}")
-        yield f"data: {json.dumps({'error': f'Agent 执行失败: {str(e)}'})}\n\n"
+        logger.error(f"Agent 执行失败: {str(e)}", exc_info=True)
+        yield f"data: {json.dumps({'error': 'Agent 执行失败，请稍后重试', 'done': True})}\n\n"
     except (KeyError, ValueError) as e:
         logger.error(f"Agent 流式响应参数错误: {str(e)}")
-        yield f"data: {json.dumps({'error': f'参数错误: {str(e)}'})}\n\n"
+        yield f"data: {json.dumps({'error': '参数错误，请检查输入', 'done': True})}\n\n"
     except Exception as e:
-        logger.error(f"Agent 流式响应错误: {str(e)}")
-        yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        logger.error(f"Agent 流式响应错误: {str(e)}", exc_info=True)
+        yield f"data: {json.dumps({'error': '服务器内部错误，请稍后重试', 'done': True})}\n\n"
 
 
 async def chat(request: ChatRequest) -> ChatResponse | StreamingResponse:
     """处理聊天请求"""
     try:
-        session_id = request.session_id or "default"
+        # 为每个请求生成唯一的 session_id，避免不同用户对话混淆
+        session_id = request.session_id or str(uuid.uuid4())
         
         if request.use_rag:
             model_type = resolve_model_type(request.model or "auto")
@@ -148,7 +151,7 @@ async def chat(request: ChatRequest) -> ChatResponse | StreamingResponse:
                     query=request.message,
                     use_rag=True,
                     model=model_type,
-                    k=4
+                    k=DEFAULT_SEARCH_K
                 )
                 
                 if result.get("success"):
@@ -230,12 +233,12 @@ async def chat(request: ChatRequest) -> ChatResponse | StreamingResponse:
         return ChatResponse(
             success=False,
             message="",
-            error=f"参数错误: {str(e)}"
+            error="参数错误，请检查输入"
         )
     except Exception as e:
-        logger.error(f"聊天处理错误: {str(e)}")
+        logger.error(f"聊天处理错误: {str(e)}", exc_info=True)
         return ChatResponse(
             success=False,
             message="",
-            error=str(e)
+            error="服务器内部错误，请稍后重试"
         )

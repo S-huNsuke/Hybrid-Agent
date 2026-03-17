@@ -61,12 +61,14 @@ uv run hybrid-agent
 ### API 服务模式
 
 ```bash
+export PYTHONPATH="$(pwd)/src"
 uv run uvicorn hybrid_agent.api.main:app --reload
 ```
 
 ### Web 界面模式
 
 ```bash
+export PYTHONPATH="$(pwd)/src"
 uv run streamlit run src/hybrid_agent/web/app.py
 ```
 
@@ -87,8 +89,27 @@ chmod +x start.sh
 - API 文档: http://localhost:8000/docs
 - 前端 Web: http://localhost:8501
 
-### 交互示例
+### Docker 部署
 
+```bash
+# 1. 复制环境变量文件
+cp .env.example .env
+
+# 2. 编辑 .env 文件，配置你的 API Key
+
+# 3. 使用 docker-compose 启动
+docker-compose up -d
+
+# 4. 访问服务
+# API: http://localhost:8000
+# API 文档: http://localhost:8000/docs
+# Web 界面: http://localhost:8501
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
 ```
 开始运行
 加载中......
@@ -156,6 +177,9 @@ Hybrid-Agent/
 │           └── streaming.py    # 流式输出
 ├── main.py                     # 项目入口
 ├── start.sh                    # 一键启动脚本
+├── Dockerfile                  # Docker 镜像构建
+├── docker-compose.yml          # Docker Compose 配置
+├── .dockerignore               # Docker 忽略文件
 ├── pyproject.toml              # 项目配置
 └── README.md
 ```

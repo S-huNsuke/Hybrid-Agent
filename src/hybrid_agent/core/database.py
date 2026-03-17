@@ -77,6 +77,7 @@ class DatabaseManager:
             session.rollback()
             raise
         finally:
+            # 使用 remove() 清理 scoped_session 的线程局部状态
             self.SessionLocal.remove()
     
     def add_document(self, doc: DocumentModel) -> DocumentModel:

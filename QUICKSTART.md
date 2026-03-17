@@ -22,7 +22,8 @@ uv run hybrid-agent
 ### 2. API 服务模式
 
 ```bash
-# 启动 FastAPI 服务
+# 启动 FastAPI 服务（需要设置 PYTHONPATH）
+export PYTHONPATH="$(pwd)/src"
 uvicorn hybrid_agent.api.main:app --reload --host 0.0.0.0 --port 8000
 
 # 访问 API 文档
@@ -32,11 +33,35 @@ uvicorn hybrid_agent.api.main:app --reload --host 0.0.0.0 --port 8000
 ### 3. Web 界面模式
 
 ```bash
-# 启动 Streamlit Web 应用
+# 启动 Streamlit Web 应用（需要设置 PYTHONPATH）
+export PYTHONPATH="$(pwd)/src"
 streamlit run src/hybrid_agent/web/app.py
 
 # 浏览器自动打开
 # http://localhost:8501
+```
+
+### 4. Docker 部署模式
+
+```bash
+# 复制环境变量文件
+cp .env.example .env
+
+# 编辑 .env 文件，配置你的 API Key
+
+# 使用 docker-compose 启动
+docker-compose up -d
+
+# 访问服务
+# API: http://localhost:8000
+# API 文档: http://localhost:8000/docs
+# Web 界面: http://localhost:8501
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
 ```
 
 ## 📝 已修复的问题

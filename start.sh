@@ -4,6 +4,9 @@
 
 set -e
 
+# 设置 PYTHONPATH
+export PYTHONPATH="$(pwd)/src"
+
 echo "=========================================="
 echo "  Hybrid-Agent 启动中..."
 echo "=========================================="

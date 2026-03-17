@@ -1,6 +1,6 @@
 import re
 
-from hybrid_agent.llm.models import advanced_model, base_model
+from hybrid_agent.llm.models import get_advanced_model, get_base_model
 
 COMPLEXITY_PATTERNS = [
     r"为什么|如何|怎么",
@@ -56,13 +56,13 @@ def select_model(state, config):
     selected = configurable.get("model", "auto") if isinstance(configurable, dict) else "auto"
 
     if selected == "qwen3-omni":
-        return base_model
+        return get_base_model()
     if selected == "deepseek-v3":
-        return advanced_model
+        return get_advanced_model()
 
     score = _calculate_complexity_score(user_input)
 
-    return advanced_model if score >= 0.4 else base_model
+    return get_advanced_model() if score >= 0.4 else get_base_model()
 
 
 def _calculate_complexity_score(user_input: str) -> float:
