@@ -24,6 +24,12 @@ class RAGConfig:
 
 
 class VectorStore:
+    """向量存储检索器
+
+    实现 RetrieverProtocol 协议。
+    基于 Chroma 和 DashScope Embedding 实现稠密向量检索。
+    """
+
     def __init__(self, config: RAGConfig) -> None:
         self.config = config
         self.embeddings = DashScopeEmbeddings(
@@ -83,6 +89,30 @@ class VectorStore:
     
     def search_with_score(self, query: str, k: int = DEFAULT_SEARCH_K) -> list[tuple]:
         return self.vector_store.similarity_search_with_score(query=query, k=k)
+
+    def search_with_metadata(self, query: str, k: int = DEFAULT_SEARCH_K) -> list[dict]:
+        """相似度搜索，返回包含完整 metadata（doc_id, chunk_id）的字典列表
+
+        Args:
+            query: 查询文本
+            k: 返回数量
+
+        Returns:
+            list of {"content", "doc_id", "chunk_id", "metadata", "score", "retrieval_method"}
+        """
+        results = self.vector_store.similarity_search_with_score(query=query, k=k)
+        output = []
+        for doc, score in results:
+            meta = doc.metadata or {}
+            output.append({
+                "content": doc.page_content,
+                "doc_id": meta.get("doc_id", ""),
+                "chunk_id": meta.get("chunk_id", ""),
+                "metadata": meta,
+                "score": float(score),
+                "retrieval_method": "dense",
+            })
+        return output
     
     def delete(self, ids: list[str]) -> None:
         """删除指定 ID 的向量"""

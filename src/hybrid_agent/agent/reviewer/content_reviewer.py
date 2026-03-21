@@ -1,5 +1,7 @@
 """内容审查器核心模块"""
 
+from __future__ import annotations
+
 import hashlib
 import logging
 import threading

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 
 from langchain_openai import ChatOpenAI
@@ -8,7 +10,9 @@ from hybrid_agent.core.config import (
     DEFAULT_TEMPERATURE,
     DEFAULT_MAX_TOKENS,
     DEFAULT_ADVANCED_MAX_TOKENS,
-    DEFAULT_TIMEOUT
+    DEFAULT_TIMEOUT,
+    DEFAULT_BASE_MODEL,
+    DEFAULT_ADVANCED_MODEL,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,7 +32,7 @@ def _create_base_model() -> ChatOpenAI:
     return ChatOpenAI(
         api_key=settings.qwen_omni_api_key,
         base_url=settings.qwen_omni_base_url,
-        model_name="qwen3-omni-flash-2025-12-01",
+        model_name=DEFAULT_BASE_MODEL,
         temperature=DEFAULT_TEMPERATURE,
         max_tokens=DEFAULT_MAX_TOKENS,
         request_timeout=DEFAULT_TIMEOUT,
@@ -45,7 +49,7 @@ def _create_advanced_model() -> ChatDeepSeek:
     return ChatDeepSeek(
         api_key=settings.deepseek_api_key,
         api_base=settings.deepseek_base_url,
-        model="deepseek-V3.2",
+        model=DEFAULT_ADVANCED_MODEL,
         temperature=DEFAULT_TEMPERATURE,
         max_tokens=DEFAULT_ADVANCED_MAX_TOKENS,
         request_timeout=DEFAULT_TIMEOUT,

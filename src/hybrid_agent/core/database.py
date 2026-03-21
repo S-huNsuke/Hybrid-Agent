@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from contextlib import contextmanager
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Float
 from sqlalchemy.orm import sessionmaker, declarative_base, make_transient, scoped_session
 from datetime import datetime
 from typing import Generator
@@ -37,6 +39,26 @@ class DocumentModel(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class BM25ChunkModel(Base):
+    """BM25 稀疏检索的文本块存储"""
+    __tablename__ = "bm25_chunks"
+
+    id = Column(String(36), primary_key=True)    # chunk_id，格式：{doc_id}_{i}
+    doc_id = Column(String(36), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    tokens = Column(Text)                         # JSON 编码的 bigram token 列表
+
+
+class ConversationSummaryModel(Base):
+    """会话摘要，用于长对话压缩"""
+    __tablename__ = "conversation_summaries"
+
+    thread_id = Column(String(255), primary_key=True)
+    summary = Column(Text, nullable=False)
+    message_count = Column(Integer, default=0)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class DatabaseManager:
@@ -117,6 +139,77 @@ class DatabaseManager:
                 doc.status = status
                 return True
             return False
+
+    # ── BM25 chunk 相关方法 ──────────────────────────────────────────────
+
+    def add_bm25_chunks(self, chunks: list[BM25ChunkModel]) -> None:
+        """批量写入 BM25 文本块（已存在则覆盖更新）"""
+        if not chunks:
+            return
+        with self._get_session() as session:
+            for chunk in chunks:
+                session.merge(chunk)
+
+    def get_bm25_chunks(self, doc_id: str | None = None) -> list[BM25ChunkModel]:
+        """获取 BM25 文本块，可按 doc_id 过滤"""
+        with self._get_session() as session:
+            q = session.query(BM25ChunkModel)
+            if doc_id:
+                q = q.filter(BM25ChunkModel.doc_id == doc_id)
+            chunks = q.all()
+            for c in chunks:
+                make_transient(c)
+            return chunks
+
+    def get_all_bm25_chunks(self) -> list[BM25ChunkModel]:
+        """获取全部 BM25 文本块（供 BM25 索引构建使用）"""
+        return self.get_bm25_chunks()
+
+    def delete_bm25_chunks(self, doc_id: str) -> int:
+        """删除指定文档的全部 BM25 文本块，返回删除数量"""
+        with self._get_session() as session:
+            count = (
+                session.query(BM25ChunkModel)
+                .filter(BM25ChunkModel.doc_id == doc_id)
+                .delete()
+            )
+            return count
+
+    # ── 会话摘要相关方法 ─────────────────────────────────────────────────
+
+    def upsert_conversation_summary(self, thread_id: str, summary: str, message_count: int) -> None:
+        """更新或插入会话摘要"""
+        with self._get_session() as session:
+            existing = session.query(ConversationSummaryModel).filter(
+                ConversationSummaryModel.thread_id == thread_id
+            ).first()
+            if existing:
+                existing.summary = summary
+                existing.message_count = message_count
+                existing.updated_at = datetime.now()
+            else:
+                session.add(ConversationSummaryModel(
+                    thread_id=thread_id,
+                    summary=summary,
+                    message_count=message_count,
+                ))
+
+    def get_conversation_summary(self, thread_id: str) -> ConversationSummaryModel | None:
+        """获取会话摘要"""
+        with self._get_session() as session:
+            s = session.query(ConversationSummaryModel).filter(
+                ConversationSummaryModel.thread_id == thread_id
+            ).first()
+            if s:
+                make_transient(s)
+            return s
+
+    def delete_conversation_summary(self, thread_id: str) -> None:
+        """删除会话摘要"""
+        with self._get_session() as session:
+            session.query(ConversationSummaryModel).filter(
+                ConversationSummaryModel.thread_id == thread_id
+            ).delete()
 
 
 db_manager: DatabaseManager = DatabaseManager()

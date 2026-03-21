@@ -4,11 +4,18 @@
 
 ## 项目介绍
 
-Hybrid-Agent 是一个智能助手系统，能够根据用户问题的复杂度自动切换不同的 AI 模型，并支持 RAG（检索增强生成）知识库功能。
+Hybrid-Agent 是一个基于 **Agentic RAG**（智能体增强检索）的智能助手系统。系统通过 LangGraph 实现多阶段推理流水线，集成了混合检索、内容审查和智能模型切换能力。
+
+核心架构：
+- **Agentic RAG**：使用 LangGraph StateGraph 实现查询理解 → 多路检索 → 自我反思 → 生成的完整流程
+- **混合检索**：融合 BM25 稀疏检索、向量稠密检索、HyDE 假设文档检索和子问题分解并行检索
+- **智能模型切换**：根据问题复杂度自动选择 Qwen3-Omni（基础模型）或 DeepSeek-V3（增强模型）
+- **内容审查**：ContentReviewer 评估检索质量，通过迭代反思提升回答准确率
 
 ## 核心功能
 
 - **智能模型切换**：根据问题复杂度自动选择基础模型或增强模型
+- **混合检索系统**：BM25 + 向量检索 + RRF 融合，提供更准确的检索结果
 - **RAG 知识库**：支持文档上传、搜索、编辑和删除
 - **流式输出**：实时展示 AI 思考过程和回答内容
 - **多模型支持**：集成了 Qwen 和 DeepSeek 等多种 AI 模型
@@ -96,71 +103,113 @@ docker-compose down
 Hybrid-Agent/
 ├── src/
 │   └── hybrid_agent/
-│       ├── agent/                  # Agent 层
+│       ├── agent/                     # Agent 层（Agentic RAG）
 │       │   ├── __init__.py
-│       │   ├── builder.py         # Agent 构建
-│       │   ├── reviewer/         # 审查模块
+│       │   ├── agentic_rag_graph.py   # LangGraph StateGraph 控制器
+│       │   ├── builder.py             # Agent 构建工厂
+│       │   ├── reviewer/              # 审查模块
 │       │   │   ├── __init__.py
-│       │   │   ├── content_reviewer.py  # 内容审查
-│       │   │   ├── scorer.py     # 评分器
-│       │   │   └── prompts.py    # 审查提示词
-│       │   └── tools/            # Agent 工具
+│       │   │   ├── content_reviewer.py  # 内容质量审查
+│       │   │   ├── scorer.py         # 评分器
+│       │   │   └── prompts.py        # 审查提示词
+│       │   └── tools/                # Agent 工具集
 │       │       ├── __init__.py
-│       │       ├── web_search.py # 网页搜索
-│       │       └── document_tools.py  # 文档工具
-│       ├── api/                   # API 层
+│       │       ├── web_search.py     # 网页搜索
+│       │       └── document_tools.py # 文档操作工具
+│       ├── api/                      # API 层
 │       │   ├── __init__.py
-│       │   ├── main.py            # FastAPI 应用
-│       │   ├── schemas.py         # 数据模型
-│       │   ├── routes/            # 路由
+│       │   ├── main.py              # FastAPI 应用
+│       │   ├── schemas.py           # Pydantic 数据模型
+│       │   ├── routes/              # 路由
 │       │   │   ├── __init__.py
-│       │   │   ├── chat.py        # 聊天接口
-│       │   │   └── documents.py  # 文档接口
-│       │   └── services/          # 服务层
+│       │   │   ├── chat.py         # 聊天接口
+│       │   │   └── documents.py    # 文档接口
+│       │   └── services/            # 服务层
 │       │       ├── __init__.py
-│       │       └── rag_service.py # RAG 服务
-│       ├── core/                  # 核心层
+│       │       └── rag_service.py   # RAG 服务
+│       ├── core/                     # 核心层（RAG 引擎）
 │       │   ├── __init__.py
-│       │   ├── config.py          # 配置管理
-│       │   ├── database.py        # 数据库
-│       │   ├── document_processor.py  # 文档处理
-│       │   ├── rag_system.py     # RAG 系统
-│       │   └── vector.py          # 向量存储
-│       ├── llm/                   # LLM 层
+│       │   ├── config.py           # 配置管理（含 Agentic RAG 配置）
+│       │   ├── database.py         # SQLite 数据库 + BM25 索引
+│       │   ├── document_processor.py   # 文档处理（PDF/TXT/DOCX 等）
+│       │   ├── hybrid_retriever.py # 混合检索（BM25 + 向量 + RRF 融合）
+│       │   ├── query_understanding.py  # 查询理解（意图分类/HyDE/子问题分解）
+│       │   ├── reranker.py         # DashScope Rerank 重排序
+│       │   ├── rag_system.py       # RAG 系统（文档管理 + 检索）
+│       │   ├── session_manager.py   # 会话管理（摘要压缩）
+│       │   ├── vector.py           # 向量存储（ChromaDB）
+│       │   └── protocols.py        # 检索器协议定义
+│       ├── llm/                     # LLM 层
 │       │   ├── __init__.py
-│       │   ├── models.py          # 模型定义
-│       │   ├── model_selector.py  # 模型选择器
-│       │   └── reviewer.py        # 回答审查器
-│       ├── web/                   # Web UI
+│       │   ├── models.py           # 模型定义（Qwen3-Omni / DeepSeek-V3）
+│       │   ├── model_selector.py   # 模型选择器（复杂度自动切换）
+│       │   └── reviewer.py         # 回答审查器
+│       ├── web/                     # Web UI（Streamlit）
 │       │   ├── __init__.py
-│       │   ├── app.py             # Streamlit 应用
-│       │   ├── components/        # UI 组件
+│       │   ├── app.py             # Streamlit 应用主入口
+│       │   ├── components/         # UI 组件
 │       │   │   ├── __init__.py
-│       │   │   ├── chat.py       # 聊天组件
-│       │   │   ├── sidebar.py    # 侧边栏
-│       │   │   └── theme.py      # 主题
-│       │   └── utils/             # 工具函数
+│       │   │   ├── chat.py        # 聊天组件
+│       │   │   ├── sidebar.py     # 侧边栏
+│       │   │   └── theme.py       # 主题切换
+│       │   └── utils/              # 工具函数
 │       │       ├── __init__.py
 │       │       └── helpers.py
-│       └── cli/                   # CLI
+│       └── cli/                     # CLI 模式
 │           ├── __init__.py
-│           ├── main.py            # CLI 入口
-│           └── streaming.py       # 流式输出
-├── main.py                        # 项目入口
-├── start.sh                       # 启动脚本
-├── Dockerfile                     # Docker 镜像
-├── docker-compose.yml             # Docker Compose
-├── .dockerignore                  # Docker 忽略文件
-├── pyproject.toml                 # 项目配置
+│           ├── main.py             # CLI 入口
+│           └── streaming.py        # 流式输出
+├── main.py                         # 项目入口
+├── start.sh                        # 前后端一键启动脚本
+├── Dockerfile                      # Docker 镜像
+├── docker-compose.yml              # Docker Compose
+├── pyproject.toml                  # 项目配置（uv）
 └── README.md
+```
+
+## Agentic RAG 架构
+
+```
+用户输入
+    ↓
+┌──────────────────────────────────────────────┐
+│  understand_query                            │
+│  ├── 意图分类（direct/rag_only/web_only/    │
+│  │         hybrid/math_code）               │
+│  ├── HyDE 改写（生成假设文档）              │
+│  └── 子问题分解（复杂查询拆解）              │
+└──────────────────────────────────────────────┘
+    ↓
+┌──────────────────────────────────────────────┐
+│  retrieval_decision                          │
+│  是否需要检索？（math_code/direct 直接跳过） │
+└──────────────────────────────────────────────┘
+    ↓ YES
+┌──────────────────────────────────────────────┐
+│  hybrid_retrieve（多路融合）                │
+│  ├── Path A: Dense 向量检索                 │
+│  ├── Path B: BM25 稀疏检索                  │
+│  ├── Path C: HyDE 向量检索                  │
+│  └── Path D: 子问题并行检索                 │
+│  → RRF 融合（k=60）→ DashScope Rerank      │
+└──────────────────────────────────────────────┘
+    ↓
+┌──────────────────────────────────────────────┐
+│  self_reflect（ContentReviewer 评估）        │
+│  迭代最多 2 次，不满足则扩大查询重检         │
+└──────────────────────────────────────────────┘
+    ↓
+┌──────────────────────────────────────────────┐
+│  generate（生成回答 + 来源归因）             │
+└──────────────────────────────────────────────┘
 ```
 
 ## 环境变量
 
 ```env
-# DeepSeek 模型
+# DeepSeek 模型（使用 DashScope 兼容接口）
 DEEPSEEK_API_KEY='your_deepseek_api_key'
-DEEPSEEK_BASE_URL='https://api.deepseek.com'
+DEEPSEEK_BASE_URL='https://dashscope.aliyuncs.com/compatible-mode/v1'
 
 # Qwen 模型
 QWEN_OMNI_API_KEY='your_qwen_api_key'

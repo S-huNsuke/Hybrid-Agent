@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 import re
@@ -18,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # 安全配置常量
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
-ALLOWED_EXTENSIONS = {'.pdf', '.txt', '.docx', '.doc', '.md', '.csv', '.xlsx', '.xls', '.json'}
+ALLOWED_EXTENSIONS = {'.pdf', '.txt', '.docx', '.md', '.csv', '.xlsx', '.xls', '.json'}
 
 
 def _sanitize_filename(filename: str) -> str:
@@ -106,7 +108,16 @@ class RAGSystem:
             return {"success": False, "error": f"保存文件失败: {str(e)}"}
 
         try:
-            documents = document_processor.process_file(file_path, filename)
+            # 编辑模式：在写入新 BM25 块之前必须先删除旧块，否则 chunk_id 主键冲突
+            if is_edit_mode:
+                try:
+                    from hybrid_agent.core.hybrid_retriever import get_bm25_retriever
+                    bm25_deleted = get_bm25_retriever().delete_chunks(new_doc_id)
+                    logger.info(f"编辑模式：预先删除旧 BM25 块 {bm25_deleted} 个")
+                except Exception as e:
+                    logger.warning(f"编辑模式 BM25 旧块删除失败（继续）: {e}")
+
+            documents = document_processor.process_file(file_path, filename, doc_id=new_doc_id)
             logger.info(f"文档处理完成，生成 {len(documents)} 个文本块")
 
             ids = [f"{new_doc_id}_{i}" for i in range(len(documents))]
@@ -160,6 +171,11 @@ class RAGSystem:
                     os.remove(file_path)
                 except (PermissionError, OSError):
                     pass
+            try:
+                from hybrid_agent.core.hybrid_retriever import get_bm25_retriever
+                get_bm25_retriever().delete_chunks(new_doc_id)
+            except Exception:
+                pass
             return {"success": False, "error": f"文档处理失败: {str(e)}"}
         except OSError as e:
             logger.error(f"向量存储失败（存储空间不足或IO错误）: {filename}, 错误: {str(e)}")
@@ -168,6 +184,11 @@ class RAGSystem:
                     os.remove(file_path)
                 except (PermissionError, OSError):
                     pass
+            try:
+                from hybrid_agent.core.hybrid_retriever import get_bm25_retriever
+                get_bm25_retriever().delete_chunks(new_doc_id)
+            except Exception:
+                pass
             return {"success": False, "error": f"向量存储失败: 存储空间不足或IO错误"}
         except Exception as e:
             logger.error(f"添加文档失败（未知错误）: {filename}, 错误: {str(e)}")
@@ -176,6 +197,11 @@ class RAGSystem:
                     os.remove(file_path)
                 except (PermissionError, OSError):
                     pass
+            try:
+                from hybrid_agent.core.hybrid_retriever import get_bm25_retriever
+                get_bm25_retriever().delete_chunks(new_doc_id)
+            except Exception:
+                pass
             return {"success": False, "error": f"添加文档失败: {str(e)}"}
     
     def delete_document(self, doc_id: str) -> Dict[str, Any]:
@@ -198,6 +224,14 @@ class RAGSystem:
             # 删除向量数据
             deleted_count = self.vector_store.delete_by_doc_id_prefix(doc_id)
             logger.info(f"已删除 {deleted_count} 个向量")
+
+            # 删除 BM25 索引
+            try:
+                from hybrid_agent.core.hybrid_retriever import get_bm25_retriever
+                bm25_deleted = get_bm25_retriever().delete_chunks(doc_id)
+                logger.info(f"已删除 {bm25_deleted} 个 BM25 块")
+            except Exception as e:
+                logger.warning(f"BM25 块删除失败（不影响主流程）: {e}")
 
             # 删除数据库记录
             db_manager.delete_document(doc_id)
@@ -225,16 +259,41 @@ class RAGSystem:
         return [doc.to_dict() for doc in docs]
     
     def search_documents(self, query: str, k: int = 4) -> list[Dict[str, Any]]:
-        results = self.vector_store.search_with_score(query, k=k)
-        
-        sources = []
-        for doc, score in results:
-            sources.append({
-                "content": doc.page_content[:500],
-                "metadata": doc.metadata,
-                "score": float(score)
-            })
-        return sources
+        """混合检索文档（BM25 + 向量 + RRF 融合）
+
+        Args:
+            query: 查询文本
+            k: 返回数量
+
+        Returns:
+            检索结果列表，每项包含 content/metadata/score/retrieval_method
+        """
+        try:
+            from hybrid_agent.core.hybrid_retriever import get_multi_path_retriever
+            retriever = get_multi_path_retriever()
+            raw_results = retriever.retrieve_sync(query)
+            # 截取 top-k，截短 content 以控制长度
+            sources = []
+            for r in raw_results[:k]:
+                sources.append({
+                    "content": r["content"][:500],
+                    "metadata": r.get("metadata", {}),
+                    "score": r.get("rrf_score", r.get("score", 0.0)),
+                    "retrieval_method": r.get("retrieval_method", "hybrid"),
+                })
+            return sources
+        except Exception as e:
+            logger.warning(f"混合检索失败，降级到纯向量检索: {e}")
+            results = self.vector_store.search_with_score(query, k=k)
+            sources = []
+            for doc, score in results:
+                sources.append({
+                    "content": doc.page_content[:500],
+                    "metadata": doc.metadata,
+                    "score": float(score),
+                    "retrieval_method": "dense_fallback",
+                })
+            return sources
     
     def query(
         self,

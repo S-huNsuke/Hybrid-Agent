@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import logging
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -86,17 +88,43 @@ class DocumentProcessor:
         
         return splitter.split_documents(documents)
     
-    def process_file(self, file_path: str, filename: str) -> list[Document]:
+    def process_file(
+        self,
+        file_path: str,
+        filename: str,
+        doc_id: str | None = None,
+    ) -> list[Document]:
+        """加载并分割文档，可选同时构建 BM25 索引
+
+        Args:
+            file_path: 文件路径
+            filename: 文件名（写入 metadata）
+            doc_id: 若提供，则在处理后触发 BM25 索引写入
+
+        Returns:
+            父级文本块列表
+        """
         docs = self.load_document(file_path)
-        
+
         for doc in docs:
             doc.metadata["filename"] = filename
-        
+
         parent_docs = self.split_documents(docs, mode="parent")
-        
+
         for doc in parent_docs:
             doc.metadata["filename"] = filename
-        
+
+        # 触发 BM25 索引（延迟导入避免循环依赖）
+        if doc_id:
+            try:
+                from hybrid_agent.core.hybrid_retriever import get_bm25_retriever
+                bm25 = get_bm25_retriever()
+                chunk_ids = [f"{doc_id}_{i}" for i in range(len(parent_docs))]
+                contents = [d.page_content for d in parent_docs]
+                bm25.index_chunks(doc_id, contents, chunk_ids)
+            except Exception as e:
+                logger.warning(f"BM25 索引写入失败（不影响向量索引）: {e}")
+
         return parent_docs
     
     def process_content(self, content: str, metadata: dict | None = None) -> list[Document]:

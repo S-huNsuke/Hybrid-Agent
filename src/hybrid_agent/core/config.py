@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import logging
 from dataclasses import dataclass
@@ -24,6 +26,9 @@ DEFAULT_ADVANCED_MAX_TOKENS = 2048
 DEFAULT_TIMEOUT = 60
 DEFAULT_COMPLEXITY_THRESHOLD = 0.4
 
+DEFAULT_BASE_MODEL = "qwen3-omni-flash-2025-12-01"
+DEFAULT_ADVANCED_MODEL = "deepseek-v3"
+
 # 审查器默认配置
 DEFAULT_REVIEWER_ENABLED = True
 DEFAULT_REVIEWER_MODEL = "qwen-turbo"
@@ -32,6 +37,48 @@ DEFAULT_REVIEWER_MAX_TOKENS = 512
 DEFAULT_REVIEWER_RELEVANCE_THRESHOLD = 5.0
 DEFAULT_REVIEWER_MAX_CONTENTS = 5
 DEFAULT_REVIEWER_TIMEOUT = 15
+
+# ── Agentic RAG 图配置 ─────────────────────────────────────────────────────
+
+# 最大检索迭代次数（SELF-RAG 反思循环）
+AGENTIC_MAX_ITERATIONS = 2
+# 检索质量满足阈值（ContentReviewer 评分 / 10）
+AGENTIC_REFLECTION_THRESHOLD = 0.5
+# 最终返回 top-K（reranker 负责缩减）
+AGENTIC_FINAL_TOP_K = 4
+
+# ── 混合检索配置 ───────────────────────────────────────────────────────────
+
+# RRF 融合公式参数（k=60 是论文推荐值）
+RRF_K = 60
+# 每路检索的候选数（reranker 负责缩减至 top-K）
+RETRIEVE_K_PER_PATH = 10
+# Rerank 返回数量
+DEFAULT_RERANK_TOP_K = 4
+# 单次 rerank 最大文档数（DashScope API 限制）
+MAX_DOCS_PER_RERANK = 20
+
+# ── 查询理解配置 ───────────────────────────────────────────────────────────
+
+# 超过该长度的查询视为复杂查询，触发子问题分解
+COMPLEX_QUERY_THRESHOLD = 100
+# 子问题最大数量
+MAX_SUB_QUERIES = 3
+# qwen-turbo 调用超时（秒）
+QUERY_UNDERSTANDING_TIMEOUT = 15
+# qwen-turbo 最大 token 数
+QUERY_UNDERSTANDING_MAX_TOKENS = 256
+
+# ── 会话管理配置 ───────────────────────────────────────────────────────────
+
+# 触发摘要压缩的对话轮数阈值
+MAX_ROUNDS_BEFORE_SUMMARY = 20
+# 会话 TTL（秒）
+SESSION_TTL = 7200  # 2 小时
+# 最大会话数
+SESSION_MAX_SIZE = 1000
+# 摘要最大 token 数
+SUMMARY_MAX_TOKENS = 300
 
 
 @dataclass(frozen=True)
@@ -76,20 +123,30 @@ def _get_env_path() -> str:
 
 
 def _validate_settings(settings: Settings) -> None:
-    required_keys = []
+    # 核心模型 API Key（必须）
+    missing_core_keys = []
     if not settings.deepseek_api_key:
-        required_keys.append("DEEPSEEK_API_KEY")
+        missing_core_keys.append("DEEPSEEK_API_KEY (高级模型 deepseek-V3.2)")
     if not settings.qwen_omni_api_key:
-        required_keys.append("QWEN_OMNI_API_KEY")
+        missing_core_keys.append("QWEN_OMNI_API_KEY (基础模型 qwen3-omni)")
     
-    if required_keys:
-        logger.warning(f"Missing API keys: {', '.join(required_keys)}")
+    if missing_core_keys:
+        logger.warning(f"缺少核心 API Key，以下功能将不可用: {', '.join(missing_core_keys)}")
     
+    # RAG 功能依赖（强烈建议）
     if not settings.tongyi_embedding_api_key:
-        logger.warning("TONGYI_EMBEDDING_API_KEY not set, RAG features may not work")
+        logger.warning("TONGYI_EMBEDDING_API_KEY 未配置，RAG 向量检索功能将不可用")
     
+    # 扩展功能依赖（可选）
+    optional_keys = []
     if not settings.qwen_api_key:
-        logger.warning("QWEN_API_KEY not set, reviewer may use fallback credentials")
+        optional_keys.append("QWEN_API_KEY")
+    
+    if optional_keys:
+        logger.info(
+            f"可选 API Key 未配置 ({', '.join(optional_keys)})，"
+            f"意图分类/HyDE改写/会话摘要等功能将降级使用 TONGYI_EMBEDDING_API_KEY"
+        )
 
 
 def _read_env() -> Settings:
