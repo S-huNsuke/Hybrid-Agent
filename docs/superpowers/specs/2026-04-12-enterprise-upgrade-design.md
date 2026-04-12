@@ -3,6 +3,7 @@
 **日期**：2026-04-12
 **目标场景**：10-50 人内部团队 / 组级文档隔离 / 账密登录 / 监控面板 / 数据不丢
 **改造策略**：渐进式最小改造 + Vue 3 前端替换
+**开发规范**：全程遵循 Harness Engineering，M0 为所有模块的前置基础
 
 ---
 
@@ -143,7 +144,315 @@ GET /api/v1/stats     LLM 成本统计（JSON，供前端用）
 
 ---
 
-## 五、实现模块拆解
+## 五、Harness Engineering 开发规范
+
+> **所有模块（M1–M16）必须在 M0 完成后才能开始实现。每个模块的开发过程均须遵守本节规范。**
+
+### 5.1 四大核心组件
+
+| 组件 | 作用 | 本项目中的实现 |
+|------|------|--------------|
+| **约束 Constrain** | 限制 Agent 能做什么 | 架构边界测试（`tests/test_architecture.py`）强制执行依赖方向 |
+| **告知 Inform** | 让 Agent 知道该做什么 | `CLAUDE.md`（目录表）+ `docs/` 规范文档 |
+| **验证 Verify** | 确认 Agent 做对了 | CI 流水线：ruff + mypy + pytest，通过静默，失败详细 |
+| **纠正 Correct** | 出错时的恢复机制 | 失败信号简洁可读；二次失败升级人工；`KNOWN_FAILURES.md` 累积禁止行为 |
+
+### 5.2 每个模块的开发流程
+
+```
+开始实现模块 Mx
+  │
+  ├─ 1. 更新 claude-progress.txt（记录当前模块 + 状态）
+  │
+  ├─ 2. 实现代码
+  │
+  ├─ 3. 本地运行检查脚本（scripts/check.py）
+  │       ├─ 通过（静默）→ 提交
+  │       └─ 失败 → Agent 自修复 → 再次检查
+  │               └─ 二次失败 → 升级人工处理
+  │
+  ├─ 4. 提交前确认：
+  │       - 新增函数是否有函数级注释（Google style）
+  │       - 是否有对应测试（新功能必须）
+  │       - 架构边界测试是否通过
+  │
+  ├─ 5. 提交 commit（原子提交，信息格式：feat/fix/refactor: 模块名 - 描述）
+  │
+  └─ 6. 更新 claude-progress.txt（标记模块完成）
+         如遇到新的 Agent 失败模式 → 追加到 KNOWN_FAILURES.md
+```
+
+### 5.3 架构依赖方向规则（CI 强制执行）
+
+```
+后端依赖方向（单向，不得逆向）：
+  Models / Schemas
+      ↓
+  Repositories（数据访问）
+      ↓
+  Services（业务逻辑）
+      ↓
+  API Routes（接口层）
+
+  core/ 模块不得 import agent/ 模块
+  api/ 模块不得直接 import core/database.py 的 ORM 模型
+
+前端依赖方向：
+  api/（HTTP 封装）← stores/（Pinia）← composables/ ← views/ / components/
+  views/ 不得直接调用 api/，必须通过 stores/ 或 composables/
+```
+
+### 5.4 commit 信息规范
+
+```
+格式：<type>(<scope>): <description>
+
+type：
+  feat     新功能
+  fix      Bug 修复
+  refactor 重构（不改变行为）
+  test     添加或修改测试
+  docs     文档变更
+  chore    构建/配置/依赖变更
+
+示例：
+  feat(auth): 添加 JWT 登录接口
+  fix(vector): 修复 group_id 过滤条件缺失
+  test(architecture): 添加后端依赖方向结构性测试
+```
+
+### 5.5 两次失败升级规则（Two-Strike Rule）
+
+```
+Agent 修复 CI 失败
+  → 第一次修复后仍失败 → 允许 Agent 再尝试一次
+  → 第二次修复后仍失败 → 停止，升级给人工，在 KNOWN_FAILURES.md 记录模式
+```
+
+---
+
+## 六、实现模块拆解
+
+### Harness 基础模块（1 个，所有模块前置）
+
+---
+
+#### M0：Harness Engineering 基础设施
+
+**目标**：建立整个项目的 Agent 工作环境，让所有后续模块在约束、告知、验证、纠正四个维度上有基础保障。**此模块必须最先完成。**
+
+**新增 / 改动文件清单**：
+
+**① 升级 `CLAUDE.md`（目录表格式）**
+
+```markdown
+# Hybrid-Agent — Agent 工作手册
+
+## 项目概述
+企业级 RAG 问答系统。FastAPI 后端 + Vue 3 前端 + PostgreSQL + ChromaDB。
+详细架构见 docs/architecture.md。
+
+## 快速启动
+\`\`\`bash
+# 后端
+cd /Users/caojun/Desktop/Hybrid-Agent
+source .venv/bin/activate
+uvicorn hybrid_agent.api.main:app --reload
+
+# 前端
+cd frontend && pnpm dev
+
+# 全部检查（通过静默，失败输出错误）
+python scripts/check.py
+\`\`\`
+
+## 架构约束（CI 强制执行，违反则构建失败）
+- 依赖方向：Models → Repositories → Services → API Routes
+- core/ 不得 import agent/
+- api/ 不得直接使用 ORM 模型，必须通过 services/
+- 详见 docs/architecture.md
+
+## 代码规范
+- 所有函数必须有函数级注释（Google style docstring）
+- Python：类型注解必须完整
+- Vue：使用 <script setup> + Composition API
+- 详见 docs/conventions.md
+
+## 测试要求
+- 新功能必须附带测试
+- 运行：python -m pytest tests/ --tb=short -q
+- 结构性测试：tests/test_architecture.py（不得删除或跳过）
+
+## 已知失败模式（禁止重复）
+见 KNOWN_FAILURES.md
+```
+
+**② `docs/architecture.md`**（架构决策记录）
+- 系统分层图（core / agent / api / web）
+- 依赖方向规则（文字 + ASCII 图）
+- ChromaDB namespace 隔离策略
+- JWT 认证流程图
+- 每个重大技术决策的选型理由
+
+**③ `docs/conventions.md`**（代码规范详细版）
+- Python 函数注释模板（Google style）
+- 类型注解要求
+- SQLAlchemy 模型命名规范
+- Vue 组件命名规范（PascalCase 文件名，kebab-case 使用）
+- CSS 变量使用规范（禁止硬编码颜色值）
+- 禁止使用 `import *`
+- 必须使用 `uv`，不得使用 `pip`
+
+**④ `tests/test_architecture.py`**（结构性测试）
+```python
+"""
+架构边界验证测试。
+验证后端依赖方向：Models → Repositories → Services → API。
+此测试由 CI 强制执行，失败表示架构边界被违反。
+"""
+import ast
+from pathlib import Path
+import pytest
+
+def get_imports(filepath: Path) -> list[str]:
+    """解析 Python 文件，返回所有 import 的模块名列表。"""
+    tree = ast.parse(filepath.read_text())
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            imports.append(node.module)
+    return imports
+
+def test_api_routes_do_not_import_repositories():
+    """API 路由层不得直接导入 Repository 层，必须通过 Service 层。"""
+    for f in Path("src/hybrid_agent/api/routes").rglob("*.py"):
+        for imp in get_imports(f):
+            assert "repositories" not in imp, (
+                f"{f.name}: API 路由直接导入了 Repository '{imp}'。"
+                f"请改为在对应 service 中封装，再从 service 调用。"
+            )
+
+def test_core_does_not_import_agent():
+    """core/ 模块不得依赖 agent/ 模块，避免循环依赖。"""
+    for f in Path("src/hybrid_agent/core").rglob("*.py"):
+        for imp in get_imports(f):
+            assert "hybrid_agent.agent" not in imp, (
+                f"{f.name}: core/ 模块导入了 agent/ 模块 '{imp}'。"
+                f"依赖方向应为 core → agent，不得逆向。"
+            )
+```
+
+**⑤ `.github/workflows/ci.yml`**（CI 流水线）
+```yaml
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync
+      - name: Lint (ruff)
+        run: uv run ruff check src/ --output-format=concise
+      - name: Type check (mypy)
+        run: uv run mypy src/hybrid_agent/ --ignore-missing-imports
+      - name: Tests (pytest)
+        run: uv run pytest tests/ --tb=short -q
+        # -q 静默通过，--tb=short 简洁失败信息，供 Agent 自修复
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install
+      - run: pnpm lint
+      - run: pnpm type-check
+      - run: pnpm test:unit --reporter=dot
+        # dot reporter：通过显示点，失败显示详情
+```
+
+**⑥ `scripts/check.py`**（本地一键检查，Agent 可直接调用）
+```python
+"""
+本地检查脚本：运行所有 lint/type/test 检查。
+通过时完全静默（exit 0）。
+失败时输出简洁错误信息（exit 2），供 Agent 自修复。
+用法：python scripts/check.py
+"""
+import subprocess
+import sys
+
+CHECKS = [
+    ["uv", "run", "ruff", "check", "src/", "--output-format=concise"],
+    ["uv", "run", "mypy", "src/hybrid_agent/", "--ignore-missing-imports"],
+    ["uv", "run", "pytest", "tests/", "--tb=short", "-q"],
+]
+
+errors = []
+for cmd in CHECKS:
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        errors.append(f"[FAILED] {' '.join(cmd)}\n{result.stdout}{result.stderr}")
+
+if errors:
+    print("\n".join(errors))
+    sys.exit(2)
+# 全部通过：完全静默
+```
+
+**⑦ `claude-progress.txt`**（跨会话进度桥接，纳入版本控制）
+```
+# Hybrid-Agent 企业级升级进度
+# 每次开始新会话前，Agent 必须先读取此文件
+
+当前阶段：M0 进行中
+已完成模块：无
+下一步：完成 M0 所有文件后，开始 M1
+
+## 模块状态
+[ ] M0  Harness 基础设施
+[ ] M1  PostgreSQL + Alembic
+[ ] M2  用户认证（JWT）
+[ ] M3  用户/组管理 + RBAC
+[ ] M4  文档组隔离
+[ ] M5  API 路由版本化
+[ ] M6  文档上传异步化
+[ ] M7  监控
+[ ] M8  Docker Compose 编排
+[ ] M9  Vue 3 脚手架
+[ ] M10 设计系统
+[ ] M11 登录页 + 路由守卫
+[ ] M12 主布局（AppShell）
+[ ] M13 聊天界面
+[ ] M14 文档管理页
+[ ] M15 管理后台
+[ ] M16 个人设置页
+```
+
+**⑧ `KNOWN_FAILURES.md`**（初始为空，持续累积）
+```markdown
+# 已知 Agent 失败模式
+
+> 每次发现新的 Agent 错误后，在此添加一条规则。
+> 这些规则会在 CLAUDE.md 中被引用，防止重复犯错。
+
+## 规则列表
+
+（初始为空，随项目推进持续累积）
+```
+
+**验收标准**：
+- `python scripts/check.py` 对当前代码库无报错（静默通过）
+- `pytest tests/test_architecture.py -v` 通过
+- `.github/workflows/ci.yml` push 后 GitHub Actions 绿色
+- `CLAUDE.md` 已更新为目录表格式
+- `claude-progress.txt` 已纳入版本控制
+
+---
 
 ### 后端模块（8 个）
 
@@ -756,15 +1065,24 @@ const { start, stop, isStreaming } = useSSE('/api/v1/chat', {
 
 ---
 
-## 六、实现顺序
+## 七、实现顺序
 
 ```
-第一阶段（后端基础）：M1 → M2 → M3 → M4 → M5
-第二阶段（后端功能）：M6 → M7 → M8
-第三阶段（前端）：    M9 → M10 → M11 → M12 → M13 → M14 → M15 → M16
+第零阶段（Harness 基础，必须最先完成）：
+  M0
+
+第一阶段（后端基础）：
+  M1 → M2 → M3 → M4 → M5
+
+第二阶段（后端功能）：
+  M6 → M7 → M8
+
+第三阶段（前端）：
+  M9 → M10 → M11 → M12 → M13 → M14 → M15 → M16
 ```
 
-每个模块完成后独立可测试，模块间依赖关系：
+**模块间依赖关系**：
+- **M0 是所有模块的前置**，未完成 M0 不得开始任何其他模块
 - M2 依赖 M1（需要 users 表）
 - M3 依赖 M2（需要 JWT 解析）
 - M4 依赖 M3（需要 group_id 来自当前用户）
@@ -777,12 +1095,16 @@ const { start, stop, isStreaming } = useSSE('/api/v1/chat', {
 - 前端 M14 依赖后端 M6
 - 前端 M15 依赖后端 M3
 
+**每个模块完成后必须**：
+1. `python scripts/check.py` 静默通过（零错误）
+2. 更新 `claude-progress.txt` 标记模块完成
+3. 有新的 Agent 失败模式 → 追加到 `KNOWN_FAILURES.md`
+
 ---
 
-## 七、不在本次范围内
+## 八、不在本次范围内
 
 - HA / 多实例部署（10-50 人规模不需要）
 - SSO / LDAP 集成（已选账密登录）
 - ChromaDB 替换（单机 ChromaDB 满足当前规模）
 - 消息队列（BackgroundTasks 满足当前吞吐）
-- 自动化测试套件（可后续单独一期）
