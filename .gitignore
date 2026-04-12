@@ -28,3 +28,6 @@ documents.db
 
 # Plans (optional - remove if you want to track these)
 plans/
+
+# Git worktrees
+.worktrees/
