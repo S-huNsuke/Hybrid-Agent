@@ -1,7 +1,7 @@
 # Hybrid-Agent 企业级升级 Phase 1 实现计划
 # M0 Harness 基础 + M1-M5 后端基础
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **状态**：✅ Phase 1 已完成（2026-04-12）。所有 24 个任务通过验收，80 个测试全绿。
 
 **Goal:** 建立 Harness Engineering 开发基础设施，并完成用户认证、RBAC 权限、文档组隔离和 API 版本化。
 
@@ -86,13 +86,13 @@ tests/test_routes_v1.py
 
 **Files:** Modify `pyproject.toml`
 
-- [ ] **Step 1：查看当前依赖**
+- [x] **Step 1：查看当前依赖**
 
 ```bash
 cat pyproject.toml | grep -A 50 "\[project\]"
 ```
 
-- [ ] **Step 2：添加开发依赖**
+- [x] **Step 2：添加开发依赖**
 
 在 `pyproject.toml` 的 `[project.optional-dependencies]` 或 `[dependency-groups]` 中追加：
 
@@ -108,7 +108,7 @@ dev = [
 ]
 ```
 
-- [ ] **Step 3：安装依赖**
+- [x] **Step 3：安装依赖**
 
 ```bash
 uv sync --group dev
@@ -116,7 +116,7 @@ uv sync --group dev
 
 Expected: 安装完成，无报错
 
-- [ ] **Step 4：验证工具可用**
+- [x] **Step 4：验证工具可用**
 
 ```bash
 uv run ruff --version && uv run mypy --version && uv run pytest --version
@@ -130,7 +130,7 @@ Expected: 三个工具各自输出版本号
 
 **Files:** Create `tests/test_architecture.py`
 
-- [ ] **Step 1：创建测试文件**
+- [x] **Step 1：创建测试文件**
 
 ```python
 # tests/test_architecture.py
@@ -202,7 +202,7 @@ def test_api_routes_do_not_import_database_models_directly():
             )
 ```
 
-- [ ] **Step 2：运行测试，确认当前代码库通过**
+- [x] **Step 2：运行测试，确认当前代码库通过**
 
 ```bash
 uv run pytest tests/test_architecture.py -v
@@ -222,7 +222,7 @@ tests/test_architecture.py::test_api_routes_do_not_import_database_models_direct
 
 **Files:** Create `scripts/__init__.py`, `scripts/check.py`
 
-- [ ] **Step 1：创建 scripts 目录和检查脚本**
+- [x] **Step 1：创建 scripts 目录和检查脚本**
 
 ```python
 # scripts/check.py
@@ -272,7 +272,7 @@ if __name__ == "__main__":
 touch scripts/__init__.py
 ```
 
-- [ ] **Step 2：运行脚本，确认当前代码库通过**
+- [x] **Step 2：运行脚本，确认当前代码库通过**
 
 ```bash
 python scripts/check.py
@@ -288,7 +288,7 @@ Expected：无任何输出（静默），exit code 0。
 
 **Files:** Modify `CLAUDE.md` (或创建，若不存在)
 
-- [ ] **Step 1：替换为目录表格式**
+- [x] **Step 1：替换为目录表格式**
 
 ```markdown
 # Hybrid-Agent — Agent 工作手册
@@ -342,7 +342,7 @@ python scripts/check.py
 见 `.env.example`（必须在 `.env` 中配置后才能运行）
 ```
 
-- [ ] **Step 2：确认文件写入成功**
+- [x] **Step 2：确认文件写入成功**
 
 ```bash
 head -5 CLAUDE.md
@@ -356,7 +356,7 @@ Expected：输出 `# Hybrid-Agent — Agent 工作手册`
 
 **Files:** Create `docs/architecture.md`, `docs/conventions.md`
 
-- [ ] **Step 1：创建 docs/architecture.md**
+- [x] **Step 1：创建 docs/architecture.md**
 
 ```markdown
 # Hybrid-Agent 架构文档
@@ -423,7 +423,7 @@ POST /api/v1/auth/login
 | 向量隔离 | ChromaDB collection per group | 天然隔离，无需过滤逻辑 |
 ```
 
-- [ ] **Step 2：创建 docs/conventions.md**
+- [x] **Step 2：创建 docs/conventions.md**
 
 ```markdown
 # 代码规范
@@ -486,7 +486,7 @@ chore(deps): 升级 langchain 至 1.3.0
 - 禁止在 `views/` 直接调用 `api/`，必须通过 `stores/` 或 `composables/`
 ```
 
-- [ ] **Step 3：确认两个文件存在**
+- [x] **Step 3：确认两个文件存在**
 
 ```bash
 ls docs/architecture.md docs/conventions.md
@@ -500,13 +500,13 @@ Expected：两个文件均存在
 
 **Files:** Create `.github/workflows/ci.yml`
 
-- [ ] **Step 1：创建目录**
+- [x] **Step 1：创建目录**
 
 ```bash
 mkdir -p .github/workflows
 ```
 
-- [ ] **Step 2：创建 CI 配置文件**
+- [x] **Step 2：创建 CI 配置文件**
 
 ```yaml
 # .github/workflows/ci.yml
@@ -545,7 +545,7 @@ jobs:
           JWT_SECRET: "test-secret-key-for-ci-only"
 ```
 
-- [ ] **Step 3：验证 YAML 语法**
+- [x] **Step 3：验证 YAML 语法**
 
 ```bash
 python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))" && echo "YAML OK"
@@ -559,7 +559,7 @@ Expected：`YAML OK`
 
 **Files:** Create `claude-progress.txt`, `KNOWN_FAILURES.md`
 
-- [ ] **Step 1：创建 claude-progress.txt**
+- [x] **Step 1：创建 claude-progress.txt**
 
 ```
 # Hybrid-Agent 企业级升级进度
@@ -576,6 +576,8 @@ Expected：`YAML OK`
 [ ] M3  用户/组管理 + RBAC
 [ ] M4  文档组隔离（ChromaDB Namespace）
 [ ] M5  API 路由版本化
+[ ] M17 开源嵌入模型替换（可与 M1-M5 并行）
+[ ] M18 开放式模型提供商管理（后端 M2 后，前端并入 M16）
 [ ] M6  文档上传异步化
 [ ] M7  监控（Prometheus + 结构化日志）
 [ ] M8  Docker Compose 完整编排
@@ -586,10 +588,10 @@ Expected：`YAML OK`
 [ ] M13 聊天界面
 [ ] M14 文档管理页
 [ ] M15 管理后台
-[ ] M16 个人设置页
+[ ] M16 个人设置页（含 M18 模型提供商管理 UI）
 ```
 
-- [ ] **Step 2：创建 KNOWN_FAILURES.md**
+- [x] **Step 2：创建 KNOWN_FAILURES.md**
 
 ```markdown
 # 已知 Agent 失败模式
@@ -604,7 +606,7 @@ Expected：`YAML OK`
 
 ## Task 8：M0 — 全量检查并提交
 
-- [ ] **Step 1：运行全量检查**
+- [x] **Step 1：运行全量检查**
 
 ```bash
 python scripts/check.py
@@ -614,11 +616,11 @@ Expected：无输出（静默通过）
 
 若有报错：修复，再次运行，直到静默。
 
-- [ ] **Step 2：更新 claude-progress.txt**
+- [x] **Step 2：更新 claude-progress.txt**
 
 将 `[ ] M0` 改为 `[x] M0`，更新"当前阶段"为 `M1 进行中`。
 
-- [ ] **Step 3：提交 M0**
+- [x] **Step 3：提交 M0**
 
 ```bash
 git add CLAUDE.md KNOWN_FAILURES.md claude-progress.txt \
@@ -637,19 +639,19 @@ Expected：commit 成功，显示新增文件列表
 
 **Files:** Modify `pyproject.toml`
 
-- [ ] **Step 1：添加生产依赖**
+- [x] **Step 1：添加生产依赖**
 
 ```bash
 uv add asyncpg alembic "sqlalchemy[asyncio]>=2.0"
 ```
 
-- [ ] **Step 2：添加测试依赖**
+- [x] **Step 2：添加测试依赖**
 
 ```bash
 uv add --group dev aiosqlite
 ```
 
-- [ ] **Step 3：验证安装**
+- [x] **Step 3：验证安装**
 
 ```bash
 uv run python -c "import asyncpg; import alembic; import aiosqlite; print('OK')"
@@ -663,7 +665,7 @@ Expected：`OK`
 
 **Files:** Modify `src/hybrid_agent/core/config.py`, `src/hybrid_agent/core/database.py`
 
-- [ ] **Step 1：在 config.py 的 Settings 中新增字段**
+- [x] **Step 1：在 config.py 的 Settings 中新增字段**
 
 在 `Settings` dataclass 中追加字段（保留所有原有字段）：
 
@@ -687,7 +689,7 @@ if settings.jwt_secret == "change-me-in-production":
     logger.warning("JWT_SECRET 使用默认值，生产环境必须设置随机密钥")
 ```
 
-- [ ] **Step 2：在 database.py 中新增异步引擎和新模型**
+- [x] **Step 2：在 database.py 中新增异步引擎和新模型**
 
 在文件顶部新增 import（保留原有 import）：
 
@@ -836,7 +838,7 @@ uploaded_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nu
 group_id = Column(String(36), nullable=True, index=True)
 ```
 
-- [ ] **Step 3：验证模型可导入**
+- [x] **Step 3：验证模型可导入**
 
 ```bash
 uv run python -c "
@@ -853,7 +855,7 @@ Expected：`models OK, tables: ['documents', 'bm25_chunks', 'conversation_summar
 
 **Files:** Create `tests/conftest.py`, `tests/test_db_models.py`
 
-- [ ] **Step 1：创建 conftest.py（测试 fixtures）**
+- [x] **Step 1：创建 conftest.py（测试 fixtures）**
 
 ```python
 # tests/conftest.py
@@ -895,7 +897,7 @@ async def db_session(async_engine):
         yield session
 ```
 
-- [ ] **Step 2：在 `pyproject.toml` 中配置 pytest-asyncio 模式**
+- [x] **Step 2：在 `pyproject.toml` 中配置 pytest-asyncio 模式**
 
 在 `pyproject.toml` 末尾追加：
 
@@ -908,7 +910,7 @@ testpaths = ["tests"]
 ignore_missing_imports = true
 ```
 
-- [ ] **Step 3：创建 DB 模型测试文件（先写测试）**
+- [x] **Step 3：创建 DB 模型测试文件（先写测试）**
 
 ```python
 # tests/test_db_models.py
@@ -997,7 +999,7 @@ async def test_user_to_dict_excludes_password(db_session: AsyncSession):
     assert d["username"] == "carol"
 ```
 
-- [ ] **Step 4：运行测试（预期通过）**
+- [x] **Step 4：运行测试（预期通过）**
 
 ```bash
 uv run pytest tests/test_db_models.py -v
@@ -1011,7 +1013,7 @@ Expected：所有 5 个测试 PASSED
 
 **Files:** Create `alembic.ini`, `alembic/env.py`, `alembic/versions/`
 
-- [ ] **Step 1：初始化 Alembic**
+- [x] **Step 1：初始化 Alembic**
 
 ```bash
 uv run alembic init alembic
@@ -1019,7 +1021,7 @@ uv run alembic init alembic
 
 Expected：创建 `alembic.ini` 和 `alembic/` 目录
 
-- [ ] **Step 2：修改 alembic.ini，让 DATABASE_URL 从环境变量读取**
+- [x] **Step 2：修改 alembic.ini，让 DATABASE_URL 从环境变量读取**
 
 找到 `sqlalchemy.url` 这一行，替换为：
 
@@ -1027,7 +1029,7 @@ Expected：创建 `alembic.ini` 和 `alembic/` 目录
 sqlalchemy.url = %(DATABASE_URL)s
 ```
 
-- [ ] **Step 3：替换 alembic/env.py**
+- [x] **Step 3：替换 alembic/env.py**
 
 ```python
 # alembic/env.py
@@ -1112,7 +1114,7 @@ else:
     run_migrations_online()
 ```
 
-- [ ] **Step 4：生成初始迁移文件**
+- [x] **Step 4：生成初始迁移文件**
 
 ```bash
 DATABASE_URL="sqlite+aiosqlite:///./documents_dev.db" uv run alembic revision --autogenerate -m "initial_schema"
@@ -1120,7 +1122,7 @@ DATABASE_URL="sqlite+aiosqlite:///./documents_dev.db" uv run alembic revision --
 
 Expected：`alembic/versions/xxxx_initial_schema.py` 文件生成，内含所有表的 `op.create_table()` 调用
 
-- [ ] **Step 5：验证迁移文件包含所有新表**
+- [x] **Step 5：验证迁移文件包含所有新表**
 
 ```bash
 cat alembic/versions/*initial_schema.py | grep "op.create_table"
@@ -1128,7 +1130,7 @@ cat alembic/versions/*initial_schema.py | grep "op.create_table"
 
 Expected：输出包含 `users`, `groups`, `user_groups`, `llm_usage_logs`
 
-- [ ] **Step 6：运行迁移，验证数据库建表成功**
+- [x] **Step 6：运行迁移，验证数据库建表成功**
 
 ```bash
 DATABASE_URL="sqlite+aiosqlite:///./documents_dev.db" uv run alembic upgrade head
@@ -1136,7 +1138,7 @@ DATABASE_URL="sqlite+aiosqlite:///./documents_dev.db" uv run alembic upgrade hea
 
 Expected：无报错，输出 `Running upgrade -> xxxx, initial_schema`
 
-- [ ] **Step 7：清理测试数据库文件**
+- [x] **Step 7：清理测试数据库文件**
 
 ```bash
 rm -f documents_dev.db
@@ -1146,7 +1148,7 @@ rm -f documents_dev.db
 
 ## Task 13：M1 — 提交 M1
 
-- [ ] **Step 1：运行全量检查**
+- [x] **Step 1：运行全量检查**
 
 ```bash
 python scripts/check.py
@@ -1154,11 +1156,11 @@ python scripts/check.py
 
 Expected：静默通过
 
-- [ ] **Step 2：更新进度文件**
+- [x] **Step 2：更新进度文件**
 
 将 `claude-progress.txt` 中 `[ ] M1` 改为 `[x] M1`，更新当前阶段为 `M2 进行中`。
 
-- [ ] **Step 3：提交**
+- [x] **Step 3：提交**
 
 ```bash
 git add pyproject.toml uv.lock \
@@ -1176,13 +1178,13 @@ git commit -m "feat(db): M1 PostgreSQL + Alembic，新增 User/Group/UserGroup/L
 
 **Files:** Modify `pyproject.toml`
 
-- [ ] **Step 1：安装认证库**
+- [x] **Step 1：安装认证库**
 
 ```bash
 uv add "python-jose[cryptography]" "passlib[bcrypt]"
 ```
 
-- [ ] **Step 2：验证**
+- [x] **Step 2：验证**
 
 ```bash
 uv run python -c "from jose import jwt; from passlib.context import CryptContext; print('auth deps OK')"
@@ -1196,7 +1198,7 @@ Expected：`auth deps OK`
 
 **Files:** Create `tests/test_auth.py`
 
-- [ ] **Step 1：创建测试文件（此时实现代码还不存在）**
+- [x] **Step 1：创建测试文件（此时实现代码还不存在）**
 
 ```python
 # tests/test_auth.py
@@ -1330,7 +1332,7 @@ async def test_me_with_invalid_token(client: AsyncClient):
     assert resp.status_code == 401
 ```
 
-- [ ] **Step 2：运行测试，确认失败（实现代码不存在）**
+- [x] **Step 2：运行测试，确认失败（实现代码不存在）**
 
 ```bash
 uv run pytest tests/test_auth.py -v 2>&1 | head -20
@@ -1344,7 +1346,7 @@ Expected：`ImportError` 或 `ModuleNotFoundError`（auth 模块尚未创建）
 
 **Files:** Create `src/hybrid_agent/api/auth/` 目录下所有文件
 
-- [ ] **Step 1：创建 auth 包和 schemas**
+- [x] **Step 1：创建 auth 包和 schemas**
 
 ```bash
 mkdir -p src/hybrid_agent/api/auth
@@ -1380,7 +1382,7 @@ class UserInfo(BaseModel):
     is_active: bool
 ```
 
-- [ ] **Step 2：实现 auth/service.py**
+- [x] **Step 2：实现 auth/service.py**
 
 ```python
 # src/hybrid_agent/api/auth/service.py
@@ -1529,7 +1531,7 @@ async def get_user_group_ids(db: AsyncSession, user_id: str) -> list[str]:
     return [row[0] for row in result.fetchall()]
 ```
 
-- [ ] **Step 3：实现 auth/dependencies.py**
+- [x] **Step 3：实现 auth/dependencies.py**
 
 ```python
 # src/hybrid_agent/api/auth/dependencies.py
@@ -1606,7 +1608,7 @@ async def get_current_user(
     )
 ```
 
-- [ ] **Step 4：实现 auth/router.py**
+- [x] **Step 4：实现 auth/router.py**
 
 ```python
 # src/hybrid_agent/api/auth/router.py
@@ -1723,7 +1725,7 @@ async def me(current_user: Annotated[UserInfo, Depends(get_current_user)]) -> Us
     return current_user
 ```
 
-- [ ] **Step 5：在 main.py 中注册 v1 router（同时做 M5 的准备）**
+- [x] **Step 5：在 main.py 中注册 v1 router（同时做 M5 的准备）**
 
 在 `src/hybrid_agent/api/main.py` 中追加：
 
@@ -1752,7 +1754,7 @@ async def v1_health():
     return {"status": "healthy", "version": "v1"}
 ```
 
-- [ ] **Step 6：运行认证测试**
+- [x] **Step 6：运行认证测试**
 
 ```bash
 uv run pytest tests/test_auth.py -v
@@ -1764,7 +1766,7 @@ Expected：所有 6 个测试 PASSED
 
 ## Task 17：M2 — 全量检查并提交 M2
 
-- [ ] **Step 1：运行全量检查**
+- [x] **Step 1：运行全量检查**
 
 ```bash
 python scripts/check.py
@@ -1772,11 +1774,11 @@ python scripts/check.py
 
 Expected：静默通过
 
-- [ ] **Step 2：更新进度文件**
+- [x] **Step 2：更新进度文件**
 
 将 `claude-progress.txt` 中 `[ ] M2` 改为 `[x] M2`，更新阶段为 `M3 进行中`。
 
-- [ ] **Step 3：提交**
+- [x] **Step 3：提交**
 
 ```bash
 git add src/hybrid_agent/api/auth/ \
@@ -1792,7 +1794,7 @@ git commit -m "feat(auth): M2 JWT 登录认证（/login /refresh /logout /me）"
 
 **Files:** Create `tests/test_admin.py`
 
-- [ ] **Step 1：创建测试（实现前）**
+- [x] **Step 1：创建测试（实现前）**
 
 ```python
 # tests/test_admin.py
@@ -1908,7 +1910,7 @@ async def test_unauthenticated_cannot_access_admin(client: AsyncClient):
     assert resp.status_code == 401
 ```
 
-- [ ] **Step 2：运行，确认失败**
+- [x] **Step 2：运行，确认失败**
 
 ```bash
 uv run pytest tests/test_admin.py -v 2>&1 | head -15
@@ -1922,7 +1924,7 @@ Expected：ImportError 或 404（admin 路由尚未创建）
 
 **Files:** Create `src/hybrid_agent/api/auth/permissions.py`, `src/hybrid_agent/api/admin/`
 
-- [ ] **Step 1：创建 permissions.py**
+- [x] **Step 1：创建 permissions.py**
 
 ```python
 # src/hybrid_agent/api/auth/permissions.py
@@ -1963,14 +1965,14 @@ def require_role(*roles: str):
     return _check
 ```
 
-- [ ] **Step 2：创建 admin 包**
+- [x] **Step 2：创建 admin 包**
 
 ```bash
 mkdir -p src/hybrid_agent/api/admin
 touch src/hybrid_agent/api/admin/__init__.py
 ```
 
-- [ ] **Step 3：创建 admin/schemas.py**
+- [x] **Step 3：创建 admin/schemas.py**
 
 ```python
 # src/hybrid_agent/api/admin/schemas.py
@@ -2013,7 +2015,7 @@ class GroupResponse(BaseModel):
     description: str | None
 ```
 
-- [ ] **Step 4：创建 admin/service.py**
+- [x] **Step 4：创建 admin/service.py**
 
 ```python
 # src/hybrid_agent/api/admin/service.py
@@ -2109,7 +2111,7 @@ async def add_member_to_group(db: AsyncSession, group_id: str, user_id: str, rol
     return assoc
 ```
 
-- [ ] **Step 5：创建 admin/router.py**
+- [x] **Step 5：创建 admin/router.py**
 
 ```python
 # src/hybrid_agent/api/admin/router.py
@@ -2187,7 +2189,7 @@ async def add_member(
     return {"message": "成员已添加"}
 ```
 
-- [ ] **Step 6：在 main.py 中注册 admin router**
+- [x] **Step 6：在 main.py 中注册 admin router**
 
 在 `v1_router.include_router(auth_router)` 之后追加：
 
@@ -2196,7 +2198,7 @@ from hybrid_agent.api.admin.router import router as admin_router
 v1_router.include_router(admin_router)
 ```
 
-- [ ] **Step 7：运行 M3 测试**
+- [x] **Step 7：运行 M3 测试**
 
 ```bash
 uv run pytest tests/test_admin.py -v
@@ -2208,7 +2210,7 @@ Expected：所有 4 个测试 PASSED
 
 ## Task 20：M3 — 全量检查并提交 M3
 
-- [ ] **Step 1：运行全量检查**
+- [x] **Step 1：运行全量检查**
 
 ```bash
 python scripts/check.py
@@ -2216,7 +2218,7 @@ python scripts/check.py
 
 Expected：静默通过
 
-- [ ] **Step 2：更新进度，提交**
+- [x] **Step 2：更新进度，提交**
 
 更新 `claude-progress.txt`（M3 完成）。
 
@@ -2235,7 +2237,7 @@ git commit -m "feat(rbac): M3 RBAC 权限层 + 用户/组管理接口"
 
 **Files:** Create `tests/test_group_isolation.py`
 
-- [ ] **Step 1：创建测试（实现前）**
+- [x] **Step 1：创建测试（实现前）**
 
 ```python
 # tests/test_group_isolation.py
@@ -2289,7 +2291,7 @@ async def test_bm25_retriever_filters_by_group():
         mock_get.assert_called_once_with("group-a")
 ```
 
-- [ ] **Step 2：运行，确认失败**
+- [x] **Step 2：运行，确认失败**
 
 ```bash
 uv run pytest tests/test_group_isolation.py -v 2>&1 | head -20
@@ -2303,7 +2305,7 @@ Expected：FAILED 或 ERROR（VectorStore 尚不接受 group_id 参数）
 
 **Files:** Modify `src/hybrid_agent/core/vector.py`
 
-- [ ] **Step 1：在 VectorStore.__init__ 中新增 group_id 参数**
+- [x] **Step 1：在 VectorStore.__init__ 中新增 group_id 参数**
 
 打开 `src/hybrid_agent/core/vector.py`，找到 `VectorStore.__init__`。
 在方法第一行插入 group_id 接收逻辑，并将 collection 名改为动态生成：
@@ -2332,7 +2334,7 @@ grep -n "get_or_create_collection" src/hybrid_agent/core/vector.py
 
 将查询结果中的硬编码字符串（如 `"hybrid_agent"` 或 `"documents"`）统一替换为 `self._collection_name`。
 
-- [ ] **Step 2：查找并替换所有 collection name 的硬编码**
+- [x] **Step 2：查找并替换所有 collection name 的硬编码**
 
 ```bash
 grep -n "collection_name\|get_or_create_collection" src/hybrid_agent/core/vector.py
@@ -2340,7 +2342,7 @@ grep -n "collection_name\|get_or_create_collection" src/hybrid_agent/core/vector
 
 检查输出，确保 `get_or_create_collection` 调用用的是变量而非硬编码字符串。
 
-- [ ] **Step 3：修改 BM25Retriever 支持 group_id 过滤**
+- [x] **Step 3：修改 BM25Retriever 支持 group_id 过滤**
 
 在 `src/hybrid_agent/core/hybrid_retriever.py` 中：
 
@@ -2384,7 +2386,7 @@ def search(self, query: str, k: int = 10, group_id: str | None = None) -> list[d
 
 同理为 `search_async` 方法添加 `group_id` 参数。
 
-- [ ] **Step 4：修改 RAGSystem 接口添加 group_id**
+- [x] **Step 4：修改 RAGSystem 接口添加 group_id**
 
 在 `src/hybrid_agent/core/rag_system.py` 中，为以下方法签名添加 `group_id: str | None = None` 参数：
 - `add_document()`
@@ -2395,7 +2397,7 @@ def search(self, query: str, k: int = 10, group_id: str | None = None) -> list[d
 
 在 `search_documents` 和 `query` 内部，将 `group_id` 传给 `VectorStore` 和 `BM25Retriever`。
 
-- [ ] **Step 5：修改 API 路由，从 current_user 注入 group_id**
+- [x] **Step 5：修改 API 路由，从 current_user 注入 group_id**
 
 在 `src/hybrid_agent/api/routes/documents.py` 和 `chat.py` 中：
 
@@ -2412,7 +2414,7 @@ current_user: Annotated[UserInfo, Depends(get_current_user)]
 group_id = current_user.group_ids[0] if current_user.group_ids else None
 ```
 
-- [ ] **Step 6：运行组隔离测试**
+- [x] **Step 6：运行组隔离测试**
 
 ```bash
 uv run pytest tests/test_group_isolation.py -v
@@ -2420,7 +2422,7 @@ uv run pytest tests/test_group_isolation.py -v
 
 Expected：测试通过
 
-- [ ] **Step 7：运行全量检查**
+- [x] **Step 7：运行全量检查**
 
 ```bash
 python scripts/check.py
@@ -2428,7 +2430,7 @@ python scripts/check.py
 
 Expected：静默通过
 
-- [ ] **Step 8：更新进度，提交 M4**
+- [x] **Step 8：更新进度，提交 M4**
 
 更新 `claude-progress.txt`（M4 完成）。
 
@@ -2448,7 +2450,7 @@ git commit -m "feat(isolation): M4 文档组隔离（ChromaDB namespace + BM25 g
 
 **Files:** Create `tests/test_routes_v1.py`
 
-- [ ] **Step 1：创建测试**
+- [x] **Step 1：创建测试**
 
 ```python
 # tests/test_routes_v1.py
@@ -2490,7 +2492,7 @@ async def test_legacy_health_redirects(client: AsyncClient):
     assert resp.status_code in (200, 301, 307)
 ```
 
-- [ ] **Step 2：运行测试**
+- [x] **Step 2：运行测试**
 
 ```bash
 uv run pytest tests/test_routes_v1.py -v
@@ -2504,7 +2506,7 @@ Expected：所有测试 PASSED（M2 已注册 v1 router）
 
 **Files:** Modify `src/hybrid_agent/api/main.py`
 
-- [ ] **Step 1：将所有旧 /api/ 路由迁移到 v1_router**
+- [x] **Step 1：将所有旧 /api/ 路由迁移到 v1_router**
 
 检查 `main.py` 中直接挂在 `app` 上的 `/api/chat`、`/api/documents` 路由，改为注册到 `v1_router`。
 
@@ -2522,7 +2524,7 @@ v1_router.include_router(docs_router)
 
 若 `chat.py` 和 `documents.py` 还是独立函数（非 `APIRouter`），需在各文件中创建 `router = APIRouter()` 并注册对应函数，然后从 `main.py` 删除重复的路由定义。
 
-- [ ] **Step 2：运行全量检查**
+- [x] **Step 2：运行全量检查**
 
 ```bash
 python scripts/check.py
@@ -2530,7 +2532,7 @@ python scripts/check.py
 
 Expected：静默通过
 
-- [ ] **Step 3：运行所有测试**
+- [x] **Step 3：运行所有测试**
 
 ```bash
 uv run pytest tests/ -v --tb=short
@@ -2538,7 +2540,7 @@ uv run pytest tests/ -v --tb=short
 
 Expected：所有测试 PASSED
 
-- [ ] **Step 4：更新进度，提交 M5**
+- [x] **Step 4：更新进度，提交 M5**
 
 更新 `claude-progress.txt`（M5 完成，Phase 1 完成）。
 
@@ -2554,7 +2556,7 @@ git commit -m "feat(api): M5 API 路由全面迁移至 /api/v1/"
 
 ## Phase 1 完成验收
 
-- [ ] **运行全量检查**
+- [x] **运行全量检查**
 
 ```bash
 python scripts/check.py
@@ -2562,7 +2564,7 @@ python scripts/check.py
 
 Expected：静默通过
 
-- [ ] **运行完整测试套件**
+- [x] **运行完整测试套件**
 
 ```bash
 uv run pytest tests/ -v --tb=short
@@ -2570,7 +2572,7 @@ uv run pytest tests/ -v --tb=short
 
 Expected：所有测试绿色，无 FAILED
 
-- [ ] **验证核心 API**
+- [x] **验证核心 API**
 
 ```bash
 PYTHONPATH=src uvicorn hybrid_agent.api.main:app --port 8000 &
@@ -2587,7 +2589,7 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 kill %1
 ```
 
-- [ ] **确认 claude-progress.txt 状态**
+- [x] **确认 claude-progress.txt 状态**
 
 ```
 [x] M0  Harness 基础设施
@@ -2602,5 +2604,5 @@ kill %1
 
 ## 后续计划
 
-- **Plan 2**（`docs/superpowers/plans/2026-04-12-phase2-backend-features.md`）：M6 文档异步上传 + M7 监控 + M8 Docker Compose
-- **Plan 3**（`docs/superpowers/plans/2026-04-12-phase3-frontend.md`）：M9-M16 Vue 3 前端
+- **Plan 2**（`docs/superpowers/plans/2026-04-12-phase2-backend-features.md`）：M17 开源嵌入模型 + M18 开放式模型提供商（后端部分）+ M6 文档异步上传 + M7 监控 + M8 Docker Compose
+- **Plan 3**（`docs/superpowers/plans/2026-04-12-phase3-frontend.md`）：M9-M16 Vue 3 前端（M16 含 M18 模型提供商管理 UI）

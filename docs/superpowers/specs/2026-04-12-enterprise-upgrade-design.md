@@ -5,6 +5,34 @@
 **改造策略**：渐进式最小改造 + Vue 3 前端替换
 **开发规范**：全程遵循 Harness Engineering，M0 为所有模块的前置基础
 
+## 实现进度总览
+
+| 阶段 | 模块 | 状态 | 完成日期 |
+|------|------|------|----------|
+| Phase 0 | M0 Harness 基础设施 | ✅ 已完成 | 2026-04-12 |
+| Phase 1 | M1 PostgreSQL + Alembic | ✅ 已完成 | 2026-04-12 |
+| Phase 1 | M2 用户认证（JWT） | ✅ 已完成 | 2026-04-12 |
+| Phase 1 | M3 用户/组管理 + RBAC | ✅ 已完成 | 2026-04-12 |
+| Phase 1 | M4 文档组隔离（ChromaDB） | ✅ 已完成 | 2026-04-12 |
+| Phase 1 | M5 API 路由版本化 | ✅ 已完成 | 2026-04-12 |
+| Phase 2 | M17 开源嵌入模型替换 | ✅ 已完成 | 2026-04-12 |
+| Phase 2 | M18 开放式模型提供商管理 | ✅ 已完成 | 2026-04-12 |
+| Phase 2 | M6 文档上传异步化 | ✅ 已完成 | 2026-04-12 |
+| Phase 2 | M7 监控（Prometheus + structlog） | ✅ 已完成 | 2026-04-12 |
+| Phase 2 | M8 Docker Compose 编排 | ✅ 已完成 | 2026-04-12 |
+| Phase 3 | M9 Vue 3 脚手架 | ⏳ 待实现 | - |
+| Phase 3 | M10 设计系统（Design Tokens） | ⏳ 待实现 | - |
+| Phase 3 | M11 登录页 + 路由守卫 | ⏳ 待实现 | - |
+| Phase 3 | M12 主布局（AppShell） | ⏳ 待实现 | - |
+| Phase 3 | M13 聊天界面 | ⏳ 待实现 | - |
+| Phase 3 | M14 文档管理页 | ⏳ 待实现 | - |
+| Phase 3 | M15 管理后台 | ⏳ 待实现 | - |
+| Phase 3 | M16 个人设置页（含 M18 UI） | ⏳ 待实现 | - |
+
+**当前阶段**：Phase 3 — 前端实现（M9 起步）
+**测试覆盖**：80 个后端单元/集成测试，全部通过
+**分支状态**：后端代码在 `worktree-phase1-backend` 分支
+
 ---
 
 ## 一、整体架构
@@ -65,6 +93,26 @@ llm_usage_logs (
   completion_tokens INT,
   cost_usd DECIMAL(10,6),
   created_at TIMESTAMP
+)
+```
+
+### 新增表（续）
+
+```sql
+-- 用户自定义模型提供商（加密存储 API Key，支持任意 OpenAI 兼容接口）
+user_llm_providers (
+  id          UUID PRIMARY KEY,
+  user_id     UUID REFERENCES users(id) ON DELETE CASCADE,
+  name        VARCHAR(64) NOT NULL,        -- 用户自定义标签，如 "我的 GPT-4"
+  provider_type VARCHAR(32) NOT NULL,      -- 'openai' | 'anthropic' | 'openai_compatible'
+  base_url    TEXT NOT NULL,               -- API 端点，如 "https://api.openai.com/v1"
+  encrypted_api_key TEXT NOT NULL,         -- Fernet 加密后的 API Key
+  default_model VARCHAR(128) NOT NULL,     -- 用户选定的默认模型，如 "gpt-4o"
+  is_default  BOOLEAN DEFAULT FALSE,       -- 是否为该用户的全局默认提供商
+  is_active   BOOLEAN DEFAULT TRUE,
+  created_at  TIMESTAMP,
+  updated_at  TIMESTAMP,
+  UNIQUE (user_id, name)
 )
 ```
 
@@ -140,6 +188,17 @@ DELETE /api/v1/admin/groups/{id}/members/{uid} 移除成员
 ```
 GET /metrics          Prometheus 指标端点
 GET /api/v1/stats     LLM 成本统计（JSON，供前端用）
+```
+
+### 模型提供商管理
+```
+GET    /api/v1/settings/providers              列出当前用户配置的所有提供商（API Key 仅返回掩码）
+GET    /api/v1/settings/providers/presets      返回内置预设列表（名称 + base_url + 推荐模型）
+POST   /api/v1/settings/providers              新增提供商配置
+PUT    /api/v1/settings/providers/{id}         更新提供商配置（含换 Key / 换模型 / 改 base_url）
+DELETE /api/v1/settings/providers/{id}         删除提供商配置
+POST   /api/v1/settings/providers/{id}/set-default  将指定提供商设为用户默认
+POST   /api/v1/settings/providers/test         测试连通性（保存前探测，不存 DB）
 ```
 
 ---
@@ -237,7 +296,7 @@ Agent 修复 CI 失败
 
 ---
 
-#### M0：Harness Engineering 基础设施
+#### ✅ M0：Harness Engineering 基础设施
 
 **目标**：建立整个项目的 Agent 工作环境，让所有后续模块在约束、告知、验证、纠正四个维度上有基础保障。**此模块必须最先完成。**
 
@@ -420,6 +479,8 @@ if errors:
 [ ] M3  用户/组管理 + RBAC
 [ ] M4  文档组隔离
 [ ] M5  API 路由版本化
+[ ] M17 开源嵌入模型替换（可与 M1-M5 并行）
+[ ] M18 开放式模型提供商管理（后端 M2 后，前端并入 M16）
 [ ] M6  文档上传异步化
 [ ] M7  监控
 [ ] M8  Docker Compose 编排
@@ -430,7 +491,7 @@ if errors:
 [ ] M13 聊天界面
 [ ] M14 文档管理页
 [ ] M15 管理后台
-[ ] M16 个人设置页
+[ ] M16 个人设置页（含 M18 模型提供商管理 UI）
 ```
 
 **⑧ `KNOWN_FAILURES.md`**（初始为空，持续累积）
@@ -458,7 +519,7 @@ if errors:
 
 ---
 
-#### M1：PostgreSQL + Alembic 数据库迁移
+#### ✅ M1：PostgreSQL + Alembic 数据库迁移
 
 **目标**：将 SQLite 替换为 PostgreSQL，建立迁移管理机制。
 
@@ -474,7 +535,7 @@ if errors:
 
 ---
 
-#### M2：用户认证（JWT）
+#### ✅ M2：用户认证（JWT）
 
 **目标**：账密登录、JWT 签发/验证、token 刷新。
 
@@ -498,7 +559,7 @@ if errors:
 
 ---
 
-#### M3：用户/组管理 + RBAC 中间件
+#### ✅ M3：用户/组管理 + RBAC 中间件
 
 **目标**：管理员可增删用户/组，权限中间件自动校验角色。
 
@@ -523,7 +584,7 @@ async def delete_document(...): ...
 
 ---
 
-#### M4：文档组隔离（ChromaDB Namespace）
+#### ✅ M4：文档组隔离（ChromaDB Namespace）
 
 **目标**：不同组的文档在向量库和 BM25 中完全隔离。
 
@@ -545,7 +606,7 @@ async def delete_document(...): ...
 
 ---
 
-#### M5：API 路由版本化
+#### ✅ M5：API 路由版本化
 
 **目标**：所有路由统一迁移到 `/api/v1/`，保留向后兼容。
 
@@ -561,7 +622,7 @@ async def delete_document(...): ...
 
 ---
 
-#### M6：文档上传异步化
+#### ✅ M6：文档上传异步化
 
 **目标**：上传接口立即返回，后台处理，前端可轮询进度。
 
@@ -592,7 +653,7 @@ async def delete_document(...): ...
 
 ---
 
-#### M7：监控（结构化日志 + Prometheus + LLM 成本）
+#### ✅ M7：监控（结构化日志 + Prometheus + LLM 成本）
 
 **目标**：暴露指标端点，记录 LLM 调用成本，输出结构化日志。
 
@@ -627,7 +688,7 @@ async def delete_document(...): ...
 
 ---
 
-#### M8：Docker Compose 完整编排
+#### ✅ M8：Docker Compose 完整编排
 
 **目标**：一条命令启动所有服务。
 
@@ -686,7 +747,7 @@ volumes: [postgres_data, grafana_data]
 
 ---
 
-#### M9：Vue 3 项目脚手架
+#### ⏳ M9：Vue 3 项目脚手架
 
 **目标**：初始化前端项目，建立工程化基础。
 
@@ -721,7 +782,7 @@ frontend/
 
 ---
 
-#### M10：设计系统（Design Tokens + 主题）
+#### ⏳ M10：设计系统（Design Tokens + 主题）
 
 **目标**：定义极简白视觉规范，全局 CSS 变量，支持深色模式切换。
 
@@ -788,7 +849,7 @@ frontend/
 
 ---
 
-#### M11：登录页 + 路由守卫
+#### ⏳ M11：登录页 + 路由守卫
 
 **目标**：账密登录，未登录自动跳转，token 过期自动刷新。
 
@@ -834,7 +895,7 @@ frontend/
 
 ---
 
-#### M12：主布局（AppShell）
+#### ⏳ M12：主布局（AppShell）
 
 **目标**：实现顶栏 + 侧边栏 + 内容区的整体框架。
 
@@ -877,7 +938,7 @@ frontend/
 
 ---
 
-#### M13：聊天界面
+#### ⏳ M13：聊天界面
 
 **目标**：核心功能页，流式输出 + Markdown 渲染 + 来源引用展示。
 
@@ -952,7 +1013,7 @@ const { start, stop, isStreaming } = useSSE('/api/v1/chat', {
 
 ---
 
-#### M14：文档管理页
+#### ⏳ M14：文档管理页
 
 **目标**：本组文档的上传、列表查看、删除，带进度显示。
 
@@ -999,7 +1060,7 @@ const { start, stop, isStreaming } = useSSE('/api/v1/chat', {
 
 ---
 
-#### M15：管理后台
+#### ⏳ M15：管理后台
 
 **目标**：admin 专属页，管理用户和组。仅在角色为 admin 时菜单可见。
 
@@ -1035,7 +1096,7 @@ const { start, stop, isStreaming } = useSSE('/api/v1/chat', {
 
 ---
 
-#### M16：个人设置页
+#### ⏳ M16：个人设置页
 
 **目标**：修改密码、主题切换、查看本人所属组信息。
 
@@ -1065,6 +1126,330 @@ const { start, stop, isStreaming } = useSSE('/api/v1/chat', {
 
 ---
 
+#### ✅ M17：开源嵌入模型替换
+
+**目标**：将 DashScope `text-embedding-v4` 替换为本地运行的开源嵌入模型，消除嵌入 API 成本和外部网络依赖，支持完全离线部署。
+
+**选型决策**：
+
+| 模型 | 维度 | 多语言 | 推荐理由 |
+|------|------|--------|----------|
+| `BAAI/bge-m3` | 1024 | 是（100+语言） | 中英文双强，MTEB 榜前列，社区活跃 |
+| `BAAI/bge-large-zh-v1.5` | 1024 | 否（中文专用） | 纯中文场景可选 |
+
+**默认选型**：`BAAI/bge-m3`（多语言、检索性能最优）
+
+**改动文件**：
+- `pyproject.toml`：新增 `sentence-transformers>=3.0.0`, `torch>=2.0.0`（CPU 版本）
+- `src/hybrid_agent/core/config.py`：
+  ```python
+  EMBEDDING_MODE=os.getenv("EMBEDDING_MODE", "local")   # local | dashscope
+  EMBEDDING_MODEL=os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
+  EMBEDDING_DEVICE=os.getenv("EMBEDDING_DEVICE", "cpu") # cpu | cuda | mps
+  ```
+- **新增** `src/hybrid_agent/core/embeddings.py`：
+  ```python
+  class EmbeddingFactory:
+      """嵌入模型工厂，支持本地（sentence-transformers）和 DashScope 两种后端。"""
+
+      @staticmethod
+      def get_embed_fn() -> Callable[[list[str]], list[list[float]]]:
+          """根据 EMBEDDING_MODE 返回对应的嵌入函数。
+          Returns:
+              接受文本列表、返回向量列表的可调用对象。
+          """
+          if settings.embedding_mode == "dashscope":
+              return _dashscope_embed
+          return _local_embed  # 默认本地模型
+
+  def _local_embed(texts: list[str]) -> list[list[float]]:
+      """使用 sentence-transformers 本地推理。自动缓存模型实例（单例）。"""
+      ...
+
+  def _dashscope_embed(texts: list[str]) -> list[list[float]]:
+      """使用 DashScope text-embedding-v4 API（保留兜底）。"""
+      ...
+  ```
+- `src/hybrid_agent/core/vector.py`：
+  - `VectorStore.__init__` 中将硬编码的 DashScope 嵌入函数替换为 `EmbeddingFactory.get_embed_fn()`
+  - ChromaDB 的 `embedding_function` 参数改用工厂返回的函数
+
+**新增文件**：
+- `tests/test_embeddings.py`：验证本地模型输出维度、相似度计算正确性
+
+**环境变量示例**（`.env.example` 新增）：
+```env
+# 嵌入模型配置
+EMBEDDING_MODE=local              # local（默认）或 dashscope
+EMBEDDING_MODEL=BAAI/bge-m3       # 模型名或本地路径
+EMBEDDING_DEVICE=cpu              # cpu / cuda / mps（Apple Silicon）
+```
+
+**Docker 处理**：
+- `Dockerfile` 中加入模型预下载步骤（构建期下载，避免首次启动慢）：
+  ```dockerfile
+  RUN python -c "from sentence_transformers import SentenceTransformer; \
+      SentenceTransformer('BAAI/bge-m3')"
+  ```
+
+**注意事项**：
+- 首次启动若模型未缓存，自动从 HuggingFace 下载（~570MB），需网络访问
+- 可通过 `TRANSFORMERS_OFFLINE=1` + 挂载本地模型路径实现完全离线
+- CPU 推理延迟：约 50-200ms/批次（batch_size=32），对 RAG 场景可接受
+
+**验收标准**：
+- `EMBEDDING_MODE=local` 时无 DashScope API 调用
+- 嵌入向量维度与 ChromaDB collection 一致（1024）
+- 现有文档上传、检索功能正常（切换模型后需重建索引）
+- `python scripts/check.py` 静默通过
+
+---
+
+#### ✅ M18：开放式模型提供商管理
+
+**目标**：将系统从"绑定固定供应商"改为"开放接入任意 LLM"。用户可在设置页自由添加任何 OpenAI 兼容接口（或原生 Anthropic），配置 Base URL、API Key、模型名，系统推理时优先使用用户自己的提供商配置，无配置时回落到系统默认。
+
+---
+
+**核心设计原则**：
+1. **一个接口覆盖 90% 供应商**：所有主流供应商（DeepSeek、Qwen、Groq、Ollama 等）均支持 OpenAI API 协议，统一用 LangChain `ChatOpenAI(base_url=..., api_key=...)` 接入
+2. **Anthropic 单独处理**：使用 `ChatAnthropic`，但对用户完全透明
+3. **预设降低配置门槛**：内置主流供应商的 base_url 和推荐模型，选预设后自动填充，用户只需填 API Key
+4. **密钥不出系统边界**：Fernet 加密存储，API 响应仅返回掩码，日志不打印明文
+
+---
+
+**支持的提供商预设**：
+
+| 预设名称 | provider_type | base_url | 推荐模型 |
+|----------|---------------|----------|----------|
+| OpenAI | `openai` | `https://api.openai.com/v1` | gpt-4o, gpt-4-turbo, gpt-3.5-turbo |
+| Anthropic | `anthropic` | `https://api.anthropic.com` | claude-3-5-sonnet-20241022, claude-3-haiku |
+| DeepSeek | `openai_compatible` | `https://api.deepseek.com/v1` | deepseek-chat, deepseek-reasoner |
+| 阿里云百炼（Qwen） | `openai_compatible` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | qwen-plus, qwen-turbo, qwen-max |
+| Groq | `openai_compatible` | `https://api.groq.com/openai/v1` | llama-3.3-70b-versatile, mixtral-8x7b |
+| Mistral | `openai_compatible` | `https://api.mistral.ai/v1` | mistral-large-latest, mistral-small |
+| Ollama（本地） | `openai_compatible` | `http://localhost:11434/v1` | llama3.2, qwen2.5, deepseek-r1 |
+| 自定义 | `openai_compatible` | （用户填写） | （用户填写） |
+
+---
+
+**数据库模型**：
+
+```python
+class UserLLMProvider(Base):
+    """用户自定义 LLM 提供商，支持任意 OpenAI 兼容接口。"""
+    __tablename__ = "user_llm_providers"
+
+    id            = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id       = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name          = Column(String(64), nullable=False)         # 用户自定义标签
+    provider_type = Column(String(32), nullable=False)         # openai | anthropic | openai_compatible
+    base_url      = Column(Text, nullable=False)               # API 端点 URL
+    encrypted_api_key = Column(Text, nullable=False)           # Fernet 加密
+    default_model = Column(String(128), nullable=False)        # 默认调用的模型名
+    is_default    = Column(Boolean, default=False)             # 全局默认提供商
+    is_active     = Column(Boolean, default=True)
+    created_at    = Column(DateTime, default=datetime.now)
+    updated_at    = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    __table_args__ = (UniqueConstraint("user_id", "name"),)
+```
+
+---
+
+**后端改动**：
+
+- `pyproject.toml`：新增 `cryptography>=42.0.0`
+- `src/hybrid_agent/core/config.py`：新增 `API_KEY_ENCRYPTION_KEY` 读取
+- `src/hybrid_agent/core/database.py`：新增 `UserLLMProvider` 模型（见上）
+- **新增** `src/hybrid_agent/api/settings/`：
+  - `__init__.py`
+  - `presets.py`：内置预设表（字典常量），供 GET `/presets` 返回和前端选择器使用
+  - `schemas.py`：
+    ```python
+    class ProviderType(str, Enum):
+        openai = "openai"
+        anthropic = "anthropic"
+        openai_compatible = "openai_compatible"
+
+    class CreateProviderRequest(BaseModel):
+        name: str                    # 用户自定义名称
+        provider_type: ProviderType
+        base_url: str                # 完整 URL，含 /v1 后缀
+        api_key: str                 # 明文，服务端加密存储
+        default_model: str           # 如 "gpt-4o"
+        is_default: bool = False
+
+    class ProviderResponse(BaseModel):
+        id: str
+        name: str
+        provider_type: str
+        base_url: str
+        masked_key: str              # 如 "sk-****a1b2"
+        default_model: str
+        is_default: bool
+        is_active: bool
+
+    class TestConnectionRequest(BaseModel):
+        provider_type: ProviderType
+        base_url: str
+        api_key: str
+        model: str
+    ```
+  - `service.py`：
+    - `encrypt_key(plain: str) -> str`：Fernet 加密
+    - `decrypt_key(cipher: str) -> str`：Fernet 解密
+    - `mask_key(plain: str) -> str`：前4位 + `****` + 后4位
+    - `build_llm_client(provider_type, base_url, api_key, model)` → LangChain BaseChatModel
+      - `openai` / `openai_compatible` → `ChatOpenAI(base_url=base_url, api_key=api_key, model=model)`
+      - `anthropic` → `ChatAnthropic(api_key=api_key, model=model)`
+    - `test_connection(req: TestConnectionRequest)` → `{"valid": bool, "latency_ms": int, "error": str | None}`
+      - 发送 1-token 探测消息，捕获 AuthenticationError / ConnectionError / Timeout
+    - CRUD：`create`, `list_by_user`, `get_by_id`, `update`, `delete`, `set_default`
+  - `router.py`：7 个端点（见 API 路由总览）
+- `src/hybrid_agent/api/main.py`：注册 `settings_router` 到 `v1_router`
+- `src/hybrid_agent/llm/models.py`：
+  ```python
+  async def get_llm_for_user(user_id: str, db: AsyncSession) -> BaseChatModel:
+      """获取用户的 LLM 客户端：优先用户自定义默认提供商，无则回落系统配置。
+
+      Args:
+          user_id: 当前用户 ID。
+          db: 数据库会话。
+
+      Returns:
+          LangChain BaseChatModel 实例。
+      """
+      provider = await _get_user_default_provider(user_id, db)
+      if provider:
+          api_key = decrypt_key(provider.encrypted_api_key)
+          return build_llm_client(provider.provider_type, provider.base_url,
+                                  api_key, provider.default_model)
+      return get_base_model()   # 系统默认（环境变量）
+  ```
+
+---
+
+**连通性测试端点逻辑**：
+
+```
+POST /api/v1/settings/providers/test
+  Body: { provider_type, base_url, api_key, model }
+  →  build_llm_client(...)
+  →  client.invoke([HumanMessage("hi")])，超时 10s
+  →  成功：{ "valid": true, "latency_ms": 340, "model_info": "gpt-4o" }
+  →  失败：{ "valid": false, "error": "Authentication failed: Invalid API key" }
+
+注意：此端点不写 DB，仅做探测，可在"保存前"调用
+```
+
+---
+
+**前端改动**（M16 个人设置页新增「模型提供商」标签页）：
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  个人信息  │  修改密码  │  模型提供商  │  外观               │
+└──────────────────────────────────────────────────────────────┘
+
+「模型提供商」标签页：
+
+  说明：配置您自己的 API 密钥后，推理请求将使用您的配额。
+        未配置时使用系统共享密钥。
+
+  [+ 添加提供商]
+
+  ┌──────────────────────────────────────────────────────────┐
+  │  🟢  我的 GPT-4                            [默认]        │
+  │      OpenAI · gpt-4o                                     │
+  │      https://api.openai.com/v1                           │
+  │                                     [编辑]  [删除]       │
+  └──────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────┐
+  │  🟢  本地 Ollama                                         │
+  │      Ollama 兼容 · qwen2.5:14b                           │
+  │      http://localhost:11434/v1                           │
+  │                          [设为默认]  [编辑]  [删除]      │
+  └──────────────────────────────────────────────────────────┘
+
+
+「添加 / 编辑提供商」对话框：
+
+  ┌──────────────────────────────────────────────────────────┐
+  │  添加模型提供商                                           │
+  │                                                           │
+  │  选择预设（可选）：                                       │
+  │  [OpenAI] [Anthropic] [DeepSeek] [Qwen] [Groq]          │
+  │  [Mistral] [Ollama] [自定义]                             │
+  │                                                           │
+  │  名称        [我的 GPT-4                    ]            │
+  │  Base URL    [https://api.openai.com/v1     ]            │
+  │              ↑ 选预设后自动填充，可手动修改               │
+  │  API Key     [sk-************************  ] [👁]         │
+  │  默认模型    [gpt-4o                        ]            │
+  │              推荐：gpt-4o / gpt-4-turbo / gpt-3.5-turbo │
+  │              （输入框可自由填写任意模型名）               │
+  │                                                           │
+  │  [✓] 设为我的默认提供商                                  │
+  │                                                           │
+  │  ┌────────────────────────────────────────────────────┐  │
+  │  │  [测试连接]  →  🟢 连接成功，延迟 320ms            │  │
+  │  └────────────────────────────────────────────────────┘  │
+  │                                                           │
+  │                           [取消]  [保存]                  │
+  └──────────────────────────────────────────────────────────┘
+```
+
+**前端交互细节**：
+- 选择预设 → 自动填充 Base URL + 弹出该供应商的推荐模型列表（El-Select + 可输入）
+- API Key 输入框：默认 `password` 类型，👁 切换明文显示
+- 「测试连接」按钮：点击后 Loading 状态，成功显示绿色延迟，失败显示红色错误信息
+- 卡片状态指示灯：🟢 最近测试成功 / 🔴 最近测试失败 / ⚪ 未测试
+- 「设为默认」后其他提供商的 `[默认]` 标签自动消失
+
+---
+
+**新增文件**：
+
+后端：
+- `src/hybrid_agent/api/settings/__init__.py`
+- `src/hybrid_agent/api/settings/presets.py`
+- `src/hybrid_agent/api/settings/schemas.py`
+- `src/hybrid_agent/api/settings/service.py`
+- `src/hybrid_agent/api/settings/router.py`
+- `tests/test_llm_providers.py`
+- `alembic/versions/0002_add_user_llm_providers.py`
+
+前端：
+- `frontend/src/components/settings/ProviderList.vue`（提供商卡片列表）
+- `frontend/src/components/settings/ProviderFormModal.vue`（添加/编辑对话框）
+- `frontend/src/api/settings.js`（HTTP 封装）
+- `frontend/src/stores/settings.js`（Pinia store）
+
+---
+
+**环境变量示例**（`.env.example` 新增）：
+
+```env
+# LLM Provider 加密主密钥（32字节 base64，生产必须替换为随机值）
+# 生成方式：python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+API_KEY_ENCRYPTION_KEY=your-fernet-key-here
+```
+
+---
+
+**验收标准**：
+- API Key 明文不出现在 DB 字段、HTTP 响应、应用日志中
+- 用户 A 无法读取或修改用户 B 的提供商配置（403）
+- 「测试连接」能正确区分有效密钥 / 无效密钥 / 网络不可达三种场景
+- 用户设置默认提供商后，聊天请求使用该提供商的 Key 和模型（可通过 llm_usage_logs 验证）
+- 无用户配置时，系统回落到环境变量中的系统 Key，功能不受影响
+- 所有 8 个预设在前端均可正常选择并自动填充 Base URL
+- `python scripts/check.py` 静默通过
+
+---
+
 ## 七、实现顺序
 
 ```
@@ -1075,10 +1460,16 @@ const { start, stop, isStreaming } = useSSE('/api/v1/chat', {
   M1 → M2 → M3 → M4 → M5
 
 第二阶段（后端功能）：
-  M6 → M7 → M8
+  M17 → M6 → M7 → M8
+  ↑
+  M17（嵌入模型）可在 M1 完成后立即并行开始，不依赖认证体系
 
 第三阶段（前端）：
-  M9 → M10 → M11 → M12 → M13 → M14 → M15 → M16
+  M9 → M10 → M11 → M12 → M13 → M14 → M15 → M16(含 M18 前端)
+
+  M18（API 密钥管理）：
+    后端部分 — 可在 M2 完成后开始（依赖 users 表和 JWT 认证）
+    前端部分 — 并入 M16（个人设置页）实现
 ```
 
 **模块间依赖关系**：
@@ -1087,9 +1478,11 @@ const { start, stop, isStreaming } = useSSE('/api/v1/chat', {
 - M3 依赖 M2（需要 JWT 解析）
 - M4 依赖 M3（需要 group_id 来自当前用户）
 - M5 独立，可与 M1-M4 并行
+- **M17 依赖 M0**（Harness 工具就位），与 M1-M5 可并行
 - M6 依赖 M4（上传需知道 group_id）
 - M7 依赖 M1（LLM 日志写 DB）
 - M8 依赖 M1-M7 全部完成
+- **M18 后端依赖 M2**（需要 users 表 + JWT）；前端依赖 M16 页面框架
 - 前端 M11 依赖后端 M2 接口就绪
 - 前端 M13 依赖后端 M4+M5
 - 前端 M14 依赖后端 M6
