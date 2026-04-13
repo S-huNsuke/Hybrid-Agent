@@ -32,8 +32,9 @@ def truncate_text(text: str, max_length: int = 100) -> str:
 
 def format_file_size(size: int) -> str:
     """格式化文件大小"""
+    size_value = float(size)
     for unit in ['B', 'KB', 'MB', 'GB']:
-        if size < 1024:
-            return f"{size:.1f} {unit}"
-        size /= 1024
-    return f"{size:.1f} TB"
+        if size_value < 1024:
+            return f"{size_value:.1f} {unit}"
+        size_value /= 1024
+    return f"{size_value:.1f} TB"

@@ -1,6 +1,7 @@
 """侧边栏组件"""
 
 import streamlit as st
+from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 from hybrid_agent.core.rag_system import get_rag_system
 
@@ -30,7 +31,7 @@ def _init_delete_state() -> None:
         st.session_state.pending_delete_doc = None
 
 
-def _render_custom_file_uploader() -> None:
+def _render_custom_file_uploader() -> list[UploadedFile] | None:
     """渲染中文文件上传器"""
     uploaded_files = st.file_uploader(
         label=" ",
@@ -41,7 +42,7 @@ def _render_custom_file_uploader() -> None:
     return uploaded_files
 
 
-def render_sidebar() -> dict:
+def render_sidebar() -> dict[str, str]:
     """渲染侧边栏"""
     st.markdown(_get_file_uploader_css(), unsafe_allow_html=True)
     _init_delete_state()
@@ -77,8 +78,8 @@ def render_sidebar() -> dict:
                     <div class="stats-label">文本块</div>
                 </div>
                 """, unsafe_allow_html=True)
-        except (KeyError, AttributeError) as e:
-            st.warning(f"加载统计信息失败: 数据格式错误")
+        except (KeyError, AttributeError):
+            st.warning("加载统计信息失败: 数据格式错误")
         except Exception as e:
             st.warning(f"加载统计信息失败: {str(e)}")
         
@@ -199,7 +200,7 @@ def _handle_file_upload(uploaded_files) -> None:
                     new_files_processed = True
                 else:
                     st.error(f"❌ 上传失败: {result.get('error', '未知错误')}")
-            except (KeyError, IOError) as e:
+            except (KeyError, IOError):
                 st.error(f"❌ 处理文件 {uploaded_file.name} 时出错: 文件操作错误")
             except Exception as e:
                 st.error(f"❌ 处理文件 {uploaded_file.name} 时出错: {str(e)}")

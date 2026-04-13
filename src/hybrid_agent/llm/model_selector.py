@@ -1,6 +1,9 @@
 import re
+from typing import Any
 
-from hybrid_agent.llm.models import get_advanced_model, get_base_model
+from hybrid_agent.core.config import DEFAULT_ADVANCED_MODEL, DEFAULT_BASE_MODEL
+from hybrid_agent.core.database import db_manager
+from hybrid_agent.llm.models import resolve_runtime_model
 
 COMPLEXITY_PATTERNS = [
     r"为什么|如何|怎么",
@@ -17,14 +20,70 @@ def resolve_model_type(model: str) -> str:
         model: 模型选择，可选值: "auto", "qwen3-omni", "deepseek-v3"
     
     Returns:
-        模型类型: "advanced" (DeepSeek) 或 "base" (Qwen)
+        模型类型: "advanced"、"base"、"auto" 或 "selected"
     """
-    if model == "deepseek-v3":
+    normalized = str(model or "").strip()
+    if normalized in {"deepseek-v3", "advanced", DEFAULT_ADVANCED_MODEL}:
         return "advanced"
-    else:
-        # auto 和 qwen3-omni 都使用 base 模型
-        # auto 模式会在 select_model 中根据复杂度动态选择
+    if normalized in {"qwen3-omni", "base", DEFAULT_BASE_MODEL}:
         return "base"
+    if normalized in {"", "auto"}:
+        return "auto"
+    return "selected"
+
+
+def resolve_model_type_for_input(model: str, user_input: str) -> str:
+    """结合用户输入，在 auto 模式下动态选择模型类型。"""
+    resolved = resolve_model_type(model)
+    if resolved != "auto":
+        return resolved
+    score = _calculate_complexity_score(user_input)
+    return "advanced" if score >= 0.4 else "base"
+
+
+def _extract_configurable(config: Any) -> dict[str, Any]:
+    configurable = getattr(config, "configurable", None)
+    if isinstance(configurable, dict):
+        return configurable
+    if isinstance(config, dict):
+        nested = config.get("configurable")
+        if isinstance(nested, dict):
+            return nested
+    return {}
+
+
+def _resolve_group_id(configurable: dict[str, Any]) -> str | None:
+    raw_group_id = configurable.get("group_id")
+    if raw_group_id:
+        return str(raw_group_id)
+
+    thread_id = configurable.get("thread_id")
+    if not thread_id or not db_manager:
+        return None
+
+    try:
+        session_obj = db_manager.get_chat_session(str(thread_id))
+    except Exception:
+        return None
+    if not session_obj or not session_obj.group_id:
+        return None
+    return str(session_obj.group_id)
+
+
+def resolve_runtime_selection(
+    model: str,
+    user_input: str,
+    *,
+    group_id: str | None = None,
+) -> tuple[Any, str, str]:
+    """为一次请求解析实际运行模型实例、模型名与模型类型。"""
+    model_type = resolve_model_type_for_input(model, user_input)
+    runtime_model, model_used = resolve_runtime_model(
+        model_type,
+        group_id=group_id,
+        requested_model=model,
+    )
+    return runtime_model, model_used, model_type
 
 
 def select_model(state, config):
@@ -46,23 +105,24 @@ def select_model(state, config):
             user_input = content
             break
 
-    # 安全地获取配置
-    configurable = getattr(config, "configurable", None)
-    if configurable is None and isinstance(config, dict):
-        configurable = config.get("configurable", {})
-    if configurable is None:
-        configurable = {}
+    configurable = _extract_configurable(config)
+    selected = str(configurable.get("model") or "auto")
+    group_id = _resolve_group_id(configurable)
 
-    selected = configurable.get("model", "auto") if isinstance(configurable, dict) else "auto"
+    model, model_used, model_type = resolve_runtime_selection(
+        selected,
+        user_input,
+        group_id=group_id,
+    )
 
-    if selected == "qwen3-omni":
-        return get_base_model()
-    if selected == "deepseek-v3":
-        return get_advanced_model()
+    # 供调用方/观测层读取本次实际选择结果
+    if isinstance(configurable, dict):
+        configurable["resolved_model_type"] = model_type
+        configurable["resolved_model_used"] = model_used
+        if group_id:
+            configurable["group_id"] = group_id
 
-    score = _calculate_complexity_score(user_input)
-
-    return get_advanced_model() if score >= 0.4 else get_base_model()
+    return model
 
 
 def _calculate_complexity_score(user_input: str) -> float:

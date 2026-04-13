@@ -30,6 +30,22 @@ logger = logging.getLogger(__name__)
 MAX_CACHE_SIZE = 1000
 
 
+def _extract_text_content(content: str | list[str | dict[Any, Any]]) -> str:
+    """将 LangChain 返回内容统一转为字符串。"""
+    if isinstance(content, str):
+        return content
+
+    parts: list[str] = []
+    for item in content:
+        if isinstance(item, str):
+            parts.append(item)
+        elif isinstance(item, dict):
+            text = item.get("text", "")
+            if isinstance(text, str):
+                parts.append(text)
+    return "".join(parts)
+
+
 class ContentReviewer:
     """内容审查器
     
@@ -91,11 +107,12 @@ class ContentReviewer:
         try:
             prompt = format_single_review_prompt(query, content, source_type)
             response = self.model.invoke(prompt)
+            response_text = _extract_text_content(response.content)
             
-            score = parse_review_response(response.content)
+            score = parse_review_response(response_text)
             if score is None:
                 # 解析失败，返回默认评分
-                logger.warning(f"审查响应解析失败: {response.content[:100]}")
+                logger.warning(f"审查响应解析失败: {response_text[:100]}")
                 score = ReviewScore(
                     total_score=5,
                     relevance=2,
@@ -119,7 +136,7 @@ class ContentReviewer:
                 completeness=2,
                 timeliness=1,
                 credibility=0,
-                reasoning=f"审查异常: 参数错误",
+                reasoning="审查异常: 参数错误",
                 should_use=True,
                 key_info=[]
             )
@@ -232,8 +249,9 @@ class ContentReviewer:
         try:
             prompt = format_batch_review_prompt(query, contents)
             response = self.model.invoke(prompt)
+            response_text = _extract_text_content(response.content)
             
-            parsed = parse_batch_review_response(response.content)
+            parsed = parse_batch_review_response(response_text)
             if parsed and "reviews" in parsed:
                 reviews = []
                 for item in parsed["reviews"]:
@@ -282,7 +300,7 @@ class ContentReviewer:
         try:
             prompt = format_context_optimization_prompt(query, reviewed_contents)
             response = self.model.invoke(prompt)
-            return response.content
+            return _extract_text_content(response.content)
         except (KeyError, ValueError, TypeError) as e:
             logger.error(f"上下文优化失败: 参数错误 - {str(e)}")
             # 降级：直接拼接内容

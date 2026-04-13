@@ -22,9 +22,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Literal, TypedDict
+from typing import Annotated, Any, Literal, TypedDict
 
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 
@@ -60,9 +60,48 @@ class AgenticRAGState(TypedDict):
     thread_id: str                        # 会话 ID
 
 
+class AgenticRAGUpdate(TypedDict, total=False):
+    """节点局部更新使用的可选状态。"""
+    original_query: str
+    intent: Literal["direct", "rag_only", "web_only", "hybrid", "math_code"]
+    rewritten_query: str
+    sub_queries: list[str]
+    hyde_doc: str
+    retrieved_chunks: list[dict]
+    reranked_chunks: list[dict]
+    compressed_context: str
+    reflection_score: float
+    iteration_count: int
+    retrieval_sufficient: bool
+    messages: Annotated[list[BaseMessage], add_messages]
+    conversation_summary: str
+    sources: list[dict]
+    retrieval_paths_used: list[str]
+    path_chunk_counts: dict[str, int]
+    thread_id: str
+
+
+def _extract_chunk_text(content: str | list[str | dict[Any, Any]] | None) -> str:
+    """将模型 chunk.content 统一转为字符串。"""
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+
+    parts: list[str] = []
+    for item in content:
+        if isinstance(item, str):
+            parts.append(item)
+        elif isinstance(item, dict):
+            text = item.get("text", "")
+            if isinstance(text, str):
+                parts.append(text)
+    return "".join(parts)
+
+
 # ── 节点实现 ──────────────────────────────────────────────────────────────
 
-def understand_query(state: AgenticRAGState) -> AgenticRAGState:
+def understand_query(state: AgenticRAGState) -> AgenticRAGUpdate:
     """节点1：意图分类 + HyDE 改写 + 子问题分解
 
     Args:
@@ -108,7 +147,7 @@ def understand_query(state: AgenticRAGState) -> AgenticRAGState:
         }
 
 
-def retrieval_decision(state: AgenticRAGState) -> AgenticRAGState:
+def retrieval_decision(state: AgenticRAGState) -> AgenticRAGUpdate:
     """节点2：决策是否需要检索
 
     direct/math_code 意图直接跳到 generate，其余进入检索流程。
@@ -124,7 +163,7 @@ def retrieval_decision(state: AgenticRAGState) -> AgenticRAGState:
     return {}
 
 
-def hybrid_retrieve(state: AgenticRAGState) -> AgenticRAGState:
+def hybrid_retrieve(state: AgenticRAGState) -> AgenticRAGUpdate:
     """节点3：多路召回（BM25 + Dense + HyDE + 子问题）
 
     Args:
@@ -183,7 +222,7 @@ def hybrid_retrieve(state: AgenticRAGState) -> AgenticRAGState:
         }
 
 
-def post_process(state: AgenticRAGState) -> AgenticRAGState:
+def post_process(state: AgenticRAGState) -> AgenticRAGUpdate:
     """节点4：Reranker + 上下文压缩
 
     Args:
@@ -238,7 +277,7 @@ def post_process(state: AgenticRAGState) -> AgenticRAGState:
     }
 
 
-def self_reflect(state: AgenticRAGState) -> AgenticRAGState:
+def self_reflect(state: AgenticRAGState) -> AgenticRAGUpdate:
     """节点5：检索质量自我反思（SELF-RAG）
 
     使用 ContentReviewer 评估检索结果是否足以回答原始问题。
@@ -295,7 +334,7 @@ def self_reflect(state: AgenticRAGState) -> AgenticRAGState:
         }
 
 
-def generate(state: AgenticRAGState) -> AgenticRAGState:
+def generate(state: AgenticRAGState) -> AgenticRAGUpdate:
     """节点6：生成最终回答
 
     根据意图和检索结果生成回答，无检索结果时直接推理。
@@ -314,8 +353,8 @@ def generate(state: AgenticRAGState) -> AgenticRAGState:
     logger.info(f"[generate] intent={intent}, context_len={len(context)}")
 
     try:
-        from hybrid_agent.llm.models import get_advanced_model, get_base_model
-        from langchain_core.messages import AIMessage, HumanMessage
+        from hybrid_agent.llm.models import get_base_model
+        from langchain_core.messages import HumanMessage
 
         llm = get_base_model()  # 生成使用基础模型（速度快）
 
@@ -339,7 +378,7 @@ def generate(state: AgenticRAGState) -> AgenticRAGState:
         full_answer = ""
         for chunk in llm.stream(messages_to_send):
             if hasattr(chunk, "content"):
-                full_answer += chunk.content or ""
+                full_answer += _extract_chunk_text(chunk.content)
 
         new_ai_message = AIMessage(content=full_answer)
 
@@ -491,7 +530,7 @@ def run_agentic_rag(
         answer = ""
         for msg in reversed(final_state.get("messages", [])):
             if isinstance(msg, AIMessage):
-                answer = msg.content
+                answer = _extract_chunk_text(msg.content)
                 break
 
         return {

@@ -5,8 +5,106 @@ import logging
 from dataclasses import dataclass
 from dotenv import load_dotenv
 from pathlib import Path
+from threading import Lock
+from typing import Any, FrozenSet, Iterable, Tuple
 
-logger = logging.getLogger(__name__)
+try:
+    import structlog as _structlog
+except ModuleNotFoundError:
+    structlog: Any | None = None
+else:
+    structlog = _structlog
+
+
+_LOGGER_INITIALIZED = False
+
+
+def _configure_logging() -> logging.Logger:
+    """Initialize structured logging for the entire application."""
+    global _LOGGER_INITIALIZED
+    if _LOGGER_INITIALIZED:
+        return logging.getLogger(__name__)
+
+    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    if structlog:
+        logging.basicConfig(level=log_level, format="%(message)s")
+        structlog.configure(
+            processors=[
+                structlog.contextvars.merge_contextvars,
+                structlog.stdlib.add_log_level,
+                structlog.processors.TimeStamper(fmt="iso"),
+                structlog.processors.StackInfoRenderer(),
+                structlog.processors.format_exc_info,
+                structlog.dev.ConsoleRenderer(),
+            ],
+            logger_factory=structlog.stdlib.LoggerFactory(),
+            wrapper_class=structlog.stdlib.BoundLogger,
+            cache_logger_on_first_use=True,
+        )
+        logger_instance = structlog.get_logger(__name__)
+    else:
+        logging.basicConfig(level=log_level, format="%(asctime)s %(levelname)s %(message)s")
+        logger_instance = logging.getLogger(__name__)
+
+    _LOGGER_INITIALIZED = True
+    return logger_instance
+
+
+logger = _configure_logging()
+
+
+_metrics_lock = Lock()
+_metrics_store: dict[Tuple[str, FrozenSet[Tuple[str, str]]], float] = {}
+
+
+def _format_labels(labels: Iterable[Tuple[str, str]]) -> str:
+    label_pairs = ",".join(f"{k}={v}" for k, v in labels)
+    return f"{{{label_pairs}}}" if label_pairs else ""
+
+
+def _metric_key(base: str, labels: Iterable[Tuple[str, str]]) -> Tuple[str, FrozenSet[Tuple[str, str]]]:
+    return base, frozenset(sorted(labels))
+
+
+def increment_metric(name: str, value: float = 1.0, **labels: str) -> None:
+    key = _metric_key(name, labels.items())
+    with _metrics_lock:
+        _metrics_store[key] = _metrics_store.get(key, 0.0) + value
+
+
+def record_request_metrics(method: str, path: str, status_code: int, duration: float) -> None:
+    increment_metric("app_requests_total", 1.0, method=method, path=path, status_code=str(status_code))
+    increment_metric(
+        "app_request_duration_seconds_sum",
+        duration,
+        method=method,
+        path=path,
+        status_code=str(status_code),
+    )
+    increment_metric(
+        "app_request_duration_seconds_count",
+        1.0,
+        method=method,
+        path=path,
+        status_code=str(status_code),
+    )
+
+
+def render_prometheus_metrics() -> str:
+    lines = [
+        "# HELP app_requests_total Total HTTP requests processed",
+        "# TYPE app_requests_total counter",
+        "# HELP app_request_duration_seconds_sum Total request duration in seconds",
+        "# TYPE app_request_request_duration_seconds_sum counter" if False else "# TYPE app_request_duration_seconds_sum counter",
+        "# HELP app_request_duration_seconds_count Total request duration samples",
+        "# TYPE app_request_duration_seconds_count counter",
+    ]
+    with _metrics_lock:
+        for (base, label_set), value in sorted(_metrics_store.items()):
+            label_str = _format_labels(label_set)
+            lines.append(f"{base}{label_str} {value}")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def get_project_root() -> Path:
@@ -96,8 +194,14 @@ class Settings:
     mysql_host: str | None
     mysql_port: str | None
     mysql_database: str | None
+    database_url: str | None
+    embedding_backend: str | None
+    embedding_model_name: str | None
+    embedding_cache_dir: str | None
+    chroma_db_dir: str | None
     api_key: str | None
     allowed_origins: str | None
+    provider_secret_key: str | None
 
 
 @dataclass
@@ -173,8 +277,14 @@ def _read_env() -> Settings:
         mysql_host=os.getenv("MYSQL_HOST"),
         mysql_port=os.getenv("MYSQL_PORT"),
         mysql_database=os.getenv("MYSQL_DATABASE"),
+        database_url=os.getenv("DATABASE_URL"),
+        embedding_backend=os.getenv("EMBEDDING_BACKEND"),
+        embedding_model_name=os.getenv("EMBEDDING_MODEL_NAME"),
+        embedding_cache_dir=os.getenv("EMBEDDING_CACHE_DIR"),
+        chroma_db_dir=os.getenv("CHROMA_DB_DIR"),
         api_key=os.getenv("API_KEY"),
         allowed_origins=os.getenv("ALLOWED_ORIGINS"),
+        provider_secret_key=os.getenv("PROVIDER_SECRET_KEY"),
     )
     
     _validate_settings(settings)
@@ -182,3 +292,20 @@ def _read_env() -> Settings:
 
 
 settings = _read_env()
+
+
+def _get_default_sqlite_url() -> str:
+    sqlite_path = get_project_root() / "documents.db"
+    return f"sqlite:///{sqlite_path}"
+
+
+def _resolve_database_url(settings: Settings) -> str:
+    return settings.database_url or _get_default_sqlite_url()
+
+
+DATABASE_URL = _resolve_database_url(settings)
+
+
+def get_provider_secret_key() -> str | None:
+    """Return the provider encryption key, falling back to JWT secret when set."""
+    return os.getenv("PROVIDER_SECRET_KEY") or os.getenv("JWT_SECRET_KEY")

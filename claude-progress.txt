@@ -1,0 +1,51 @@
+# Hybrid-Agent 企业级升级进度
+# 每次开始新会话前请先阅读此文件，确认当前阶段再继续
+
+当前阶段：可交付候选版本收口中（M20/M21/M22/M25 已完成；M23 的代码与文档已补齐，容器实跑被本机 Docker daemon 缺失阻塞）
+已完成模块：M0 Harness Engineering 基础设施；M1 PostgreSQL + Alembic 最小基线（DATABASE_URL、Alembic、初始迁移、SQLite 兼容路径）；M2 用户认证（JWT 最小可用：login/refresh/logout/me）；M3 用户/组管理 + RBAC 最小闭环（admin/group_admin/member）；M4 文档组隔离（DB/RAG/检索/API 已引入 group 维度）；M5 API 路由版本化（`/api/v1/*` 已引入，旧 `/api/*` 兼容保留）；M6 文档上传异步化（task_id + 进度查询已打通）；M7 监控（structlog + /metrics + usage log）；M8 Docker Compose 编排（api/frontend/postgres/prometheus/grafana 基础配置已落地）；M9 Vue 3 脚手架；M10 设计系统（tokens/theme/Element Plus 基础视觉已接入）；M11 登录页 + 路由守卫（前端 auth 最小闭环）；M12 主布局（AppShell 基础组件与整合已落地）；M13 聊天界面（基础消息流/API 已接通）；M14 文档管理页（上传任务、列表、删除已接通）；M15 管理后台（用户/组管理已接通）；M16 个人设置页（主题/用户信息/provider 管理已接通）；M17 开源嵌入模型替换（可配置开源 embedding 已接入）；M18 模型提供商管理后端（providers CRUD + 掩码返回 + 权限边界已落地）；前端已通过一次 `npm run build`
+下一步：在具备 Docker daemon 的环境执行 M23 容器实跑；若通过，即进入最终发布收口
+
+## 模块状态
+[x] M0  Harness 基础设施（文档/测试/校验脚本/CI 已落地，scripts/check.py 可通过）
+[x] M1  PostgreSQL + Alembic（已接入 DATABASE_URL、Alembic 与初始迁移；运行时保留 SQLite fallback）
+[x] M2  用户认证（JWT）（已引入 auth 模块、JWT 依赖与认证路由）
+[x] M3  用户/组管理 + RBAC（已具备 admin/group_admin/member 最小闭环）
+[x] M4  文档组隔离（DB/RAG/检索/API 已贯通 group 维度）
+[x] M5  API 路由版本化（已引入 /api/v1，并保留旧路径兼容）
+[x] M17 开源嵌入模型替换（可配置开源 embedding 已接入）
+[x] M18 模型提供商管理（后端已落地，前端设置页已接通基础 UI）
+[x] M6  文档上传异步化（task_id + 进度轮询已落地）
+[x] M7  监控（structlog / metrics / usage log 已落地）
+[x] M8  Docker Compose 编排（多服务联调基础配置已落地）
+[x] M9  Vue 3 脚手架（已有空壳，主要结构就位）
+[x] M10 设计系统（tokens / theme / 基础视觉已落地）
+[x] M11 登录页 + 路由守卫（前端 auth 最小闭环已落地）
+[x] M12 主布局（AppShell）（基础组件与整合已落地）
+[x] M13 聊天界面（基础消息流/API 已接通）
+[x] M14 文档管理页（上传任务、列表、删除已接通）
+[x] M15 管理后台（用户/组管理已接通）
+[x] M16 个人设置页（含 M18 模型提供商 UI）（基础功能已接通）
+[x] M19 Provider Runtime Integration（`/api/v1/models` 已切到 runtime 数据源，`/api/v1/chat` 已统一输出真实 `model_used`，前端已接线）
+[x] M20 浏览器级联调验收（Playwright harness 已稳定；完整 smoke `register -> provider -> user -> upload -> chat` 已跑通）
+[x] M21 Provider 运行时产品化收口（provider 健康检查、设置页角色分流、runtime 反馈已落地）
+[x] M22 文档系统增强（批量上传、任务详情/失败原因、重试、搜索筛选排序已落地）
+[x] M25 前端性能优化（路由级懒加载 + vendor/manualChunks 已落地，主包已拆散）
+[~] M23 部署与恢复验收（`docker-compose config` 与 `scripts/release_check.py` 已通过；`docker-compose up -d` 因本机无 Docker daemon 而中断）
+[x] 发布硬化（迁移入口、backup service、部署文档、发布清单、release check 脚本已落地）
+[~] P6 监控看板与告警（Prometheus rule_files + Grafana dashboard provisioning 已落地；仍缺更多针对业务指标的仪表盘与规则）
+
+## Phase 4 收口记录（2026-04-13）
+- 已新增/更新测试：
+- `tests/test_api_main.py`：补充 `/api/v1/models` 挂载与 `/api/models` 兼容桥接断言。
+- `tests/test_provider_runtime.py`：新增 `/api/v1/chat` 的 `model_used` 透传/回退契约测试，及 `/api/v1/models` 最小结构测试。
+- `tests/e2e/smoke.spec.js`：新增浏览器流程中的 `/api/v1/models` API 冒烟断言。
+- 已同步文档：
+- `docs/architecture.md`：新增 Provider Runtime 当前状态与回归覆盖说明（仅陈述已实现行为）。
+- `docs/conventions.md`：新增 Provider Runtime Harness 规则与契约约束。
+- 本轮新增落地：
+- `/api/v1/providers/{provider_id}/health` 健康检查接口已落地，设置页可直接触发检查。
+- 前端已在 UI 层隐藏非 admin 的管理入口，并通过路由守卫阻断 `/admin` 访问。
+- `prometheus/rules/hybrid_agent_base.rules.yml` 与 `grafana/provisioning/dashboards/` 已加入 Compose 编排。
+- Playwright smoke 已改为自举前后端服务、独立端口与独立 SQLite 数据库，并在当前环境完成一次真实通过。
+- `/api/v1/auth/me` 已补充 `role/group_roles`，前端权限判断与浏览器级联调保持一致。
+- 前端 API 层已统一为相对 `/api/v1` 路径，开发时通过 Vite 代理对接后端。

@@ -1,13 +1,12 @@
 import os
 import logging
-from typing import Any
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
 from hybrid_agent.core.rag_system import get_rag_system
 from hybrid_agent.core.config import default_reviewer_settings
-from hybrid_agent.agent.reviewer import get_reviewer, BatchReviewResult
+from hybrid_agent.agent.reviewer import get_reviewer
 
 logger = logging.getLogger(__name__)
 
@@ -89,10 +88,10 @@ def document_edit_func(document_id: str, new_content: str) -> str:
                 
     except (FileNotFoundError, PermissionError, IOError) as e:
         logger.error(f"编辑失败: 文件操作错误 - {str(e)}")
-        return f"❌ 编辑失败: 文件访问错误"
+        return "❌ 编辑失败: 文件访问错误"
     except ValueError as e:
         logger.error(f"编辑失败: 数据验证错误 - {str(e)}")
-        return f"❌ 编辑失败: 数据验证错误"
+        return "❌ 编辑失败: 数据验证错误"
     except Exception as e:
         logger.error(f"编辑失败: {str(e)}")
         return f"❌ 编辑失败: {str(e)}"
@@ -111,7 +110,7 @@ def document_delete_func(document_id: str) -> str:
             return f"❌ 删除失败: {result.get('error', '未知错误')}"
     except (FileNotFoundError, PermissionError, IOError) as e:
         logger.error(f"删除失败: 文件操作错误 - {str(e)}")
-        return f"❌ 删除失败: 文件访问错误"
+        return "❌ 删除失败: 文件访问错误"
     except Exception as e:
         logger.error(f"删除失败: {str(e)}")
         return f"❌ 删除失败: {str(e)}"
@@ -136,7 +135,7 @@ def list_documents_func(query: str | None = None) -> str:
         return result
     except (FileNotFoundError, PermissionError, IOError) as e:
         logger.error(f"获取文档列表失败: 文件操作错误 - {str(e)}")
-        return f"获取文档列表失败: 文件访问错误"
+        return "获取文档列表失败: 文件访问错误"
     except Exception as e:
         logger.error(f"获取文档列表失败: {str(e)}")
         return f"获取文档列表失败: {str(e)}"
@@ -214,10 +213,10 @@ def search_documents_func(query: str, top_k: int = 3, enable_review: bool = True
             
     except (FileNotFoundError, PermissionError, IOError) as e:
         logger.error(f"搜索失败: 文件操作错误 - {str(e)}")
-        return f"搜索失败: 文件访问错误"
+        return "搜索失败: 文件访问错误"
     except ValueError as e:
         logger.error(f"搜索失败: 数据验证错误 - {str(e)}")
-        return f"搜索失败: 数据验证错误"
+        return "搜索失败: 数据验证错误"
     except Exception as e:
         logger.error(f"搜索失败: {str(e)}")
         return f"搜索失败: {str(e)}"

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Any
 
 from hybrid_agent.core.config import DEFAULT_RERANK_TOP_K, MAX_DOCS_PER_RERANK
 
@@ -33,7 +32,6 @@ def _dashscope_rerank(
         重排结果列表 [{"index": int, "relevance_score": float}]，失败返回 None
     """
     try:
-        import dashscope
         from dashscope import TextReRank
 
         resp = TextReRank.call(

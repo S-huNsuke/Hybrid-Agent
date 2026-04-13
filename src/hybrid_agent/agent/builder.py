@@ -3,6 +3,7 @@ from langgraph.prebuilt import create_react_agent
 import threading
 from cachetools import TTLCache
 
+from hybrid_agent.core.database import db_manager
 from hybrid_agent.llm.model_selector import select_model
 from hybrid_agent.agent.tools import (
     web_search,
@@ -47,7 +48,23 @@ _agentic_rag_graph = None
 _rag_graph_lock = threading.Lock()
 
 
-def _get_or_create_config(thread_id: str, model: str = "auto") -> dict:
+def _resolve_group_id_from_session(thread_id: str) -> str | None:
+    if not db_manager:
+        return None
+    try:
+        session_obj = db_manager.get_chat_session(thread_id)
+    except Exception:
+        return None
+    if not session_obj or not session_obj.group_id:
+        return None
+    return str(session_obj.group_id)
+
+
+def _get_or_create_config(
+    thread_id: str,
+    model: str = "auto",
+    group_id: str | None = None,
+) -> dict:
     """获取或创建线程配置，同时驱动会话管理器
 
     Args:
@@ -57,13 +74,18 @@ def _get_or_create_config(thread_id: str, model: str = "auto") -> dict:
     Returns:
         LangGraph config 字典
     """
+    resolved_group_id = group_id or _resolve_group_id_from_session(thread_id)
+
     if thread_id not in AGENT_CONFIGS:
+        configurable = {
+            "thread_id": thread_id,
+            "model": model,
+            "pending_confirmation": None,
+        }
+        if resolved_group_id:
+            configurable["group_id"] = resolved_group_id
         AGENT_CONFIGS[thread_id] = {
-            "configurable": {
-                "thread_id": thread_id,
-                "model": model,
-                "pending_confirmation": None
-            }
+            "configurable": configurable
         }
         # 初始化会话管理器（触发从 SQLite 加载已有摘要）
         try:
@@ -72,8 +94,20 @@ def _get_or_create_config(thread_id: str, model: str = "auto") -> dict:
         except Exception:
             pass
     else:
-        AGENT_CONFIGS[thread_id]["configurable"]["model"] = model
+        configurable = AGENT_CONFIGS[thread_id]["configurable"]
+        configurable["model"] = model
+        if resolved_group_id:
+            configurable["group_id"] = resolved_group_id
     return AGENT_CONFIGS[thread_id]
+
+
+def build_agent_config(
+    thread_id: str,
+    model: str = "auto",
+    group_id: str | None = None,
+) -> dict:
+    """构建可复用的 agent config（包含 group 透传）。"""
+    return _get_or_create_config(thread_id, model=model, group_id=group_id)
 
 
 def _create_agent(enable_tools: bool = True, enable_approval: bool = False):

@@ -9,6 +9,7 @@ from pydantic import BaseModel
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
+    group_id: str | None = None
     model: str | None = "auto"
     use_rag: bool | None = True
     stream: bool = True
@@ -23,6 +24,32 @@ class ChatResponse(BaseModel):
     error: str | None = None
 
 
+class ChatSessionItem(BaseModel):
+    id: str
+    title: str
+    user_id: str | None = None
+    group_id: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+    last_message_at: str | None = None
+
+
+class ChatSessionListResponse(BaseModel):
+    success: bool
+    sessions: list[ChatSessionItem] = []
+    error: str | None = None
+
+
+class ChatSessionRenameRequest(BaseModel):
+    title: str
+
+
+class ChatSessionDeleteResponse(BaseModel):
+    success: bool
+    session_id: str
+    error: str | None = None
+
+
 # ==================== 文档相关 ====================
 
 class Document(BaseModel):
@@ -31,6 +58,26 @@ class Document(BaseModel):
     upload_time: str
     size: int
     status: str = "ready"
+
+
+class UploadTaskResponse(BaseModel):
+    success: bool
+    task_id: str
+    status: str
+    progress: int
+    error: str | None = None
+    message: str | None = None
+
+
+class TaskStatus(BaseModel):
+    task_id: str
+    filename: str | None = None
+    status: str
+    progress: int
+    group_id: str | None = None
+    document_id: str | None = None
+    message: str | None = None
+    error: str | None = None
 
 
 class UploadResponse(BaseModel):
@@ -83,14 +130,23 @@ class ModelInfo(BaseModel):
     name: str
     description: str
     is_available: bool = True
+    provider: str | None = None
+    provider_type: str | None = None
+    group_id: str | None = None
 
 
 __all__ = [
     "ChatRequest",
     "ChatResponse",
+    "ChatSessionItem",
+    "ChatSessionListResponse",
+    "ChatSessionRenameRequest",
+    "ChatSessionDeleteResponse",
     "Document",
     "UploadResponse",
     "DocumentListResponse",
+    "UploadTaskResponse",
+    "TaskStatus",
     "RAGRequest",
     "RAGResponse",
     "DocumentAddRequest",

@@ -52,8 +52,9 @@ class TestRRFMerge:
         
         # 两个不同内容，应该都保留
         assert len(merged) == 2
-        # 第一个结果的 RRF 分数更高（rank=1）
-        assert merged[0]["rrf_score"] > merged[1]["rrf_score"]
+        # 两条结果都在各自路径中 rank=1，因此 RRF 分数相同
+        assert merged[0]["rrf_score"] == merged[1]["rrf_score"]
+        assert {item["chunk_id"] for item in merged} == {"c1", "c2"}
 
     def test_ranking_order(self):
         """测试排序顺序（按 RRF 分数降序）"""

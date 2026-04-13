@@ -1,0 +1,14 @@
+{
+  "name": "hybrid-agent-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test --config ./playwright.config.mjs",
+    "test:smoke": "playwright test ./smoke.spec.js --config ./playwright.config.mjs",
+    "test:headed": "playwright test --headed --config ./playwright.config.mjs",
+    "report": "playwright show-report ./artifacts/html-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.51.1"
+  }
+}

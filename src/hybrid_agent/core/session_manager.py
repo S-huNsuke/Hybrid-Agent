@@ -12,7 +12,8 @@ import logging
 import threading
 from typing import Any
 
-from cachetools import TTLCache
+from cachetools import TTLCache  # type: ignore[import-untyped]
+from pydantic import SecretStr
 
 from hybrid_agent.core.config import (
     MAX_ROUNDS_BEFORE_SUMMARY,
@@ -30,6 +31,29 @@ _SUMMARY_PROMPT = """以下是一段对话记录，请用 200 字以内总结对
 {messages}
 
 摘要（直接输出，不要加前缀）："""
+
+
+def _to_secret(api_key: str | None) -> SecretStr | None:
+    """将字符串 API Key 转为 SecretStr。"""
+    if api_key is None:
+        return None
+    return SecretStr(api_key)
+
+
+def _extract_text_content(content: str | list[str | dict[Any, Any]]) -> str:
+    """将 LangChain 返回内容统一转为字符串。"""
+    if isinstance(content, str):
+        return content
+
+    parts: list[str] = []
+    for item in content:
+        if isinstance(item, str):
+            parts.append(item)
+        elif isinstance(item, dict):
+            text = item.get("text", "")
+            if isinstance(text, str):
+                parts.append(text)
+    return "".join(parts)
 
 
 class SessionManager:
@@ -201,17 +225,18 @@ class SessionManager:
                 return None
 
             llm = ChatOpenAI(
-                api_key=api_key,
+                api_key=_to_secret(api_key),
                 base_url=base_url,
-                model_name="qwen-turbo",
+                model="qwen-turbo",
                 temperature=0.1,
-                max_tokens=SUMMARY_MAX_TOKENS,
-                request_timeout=QUERY_UNDERSTANDING_TIMEOUT,
+                max_completion_tokens=SUMMARY_MAX_TOKENS,
+                timeout=QUERY_UNDERSTANDING_TIMEOUT,
             )
 
             prompt = _SUMMARY_PROMPT.format(messages=formatted_messages)
             resp = llm.invoke([HumanMessage(content=prompt)])
-            return resp.content.strip() if resp and resp.content else None
+            text = _extract_text_content(resp.content) if resp and resp.content else ""
+            return text.strip() if text else None
         except Exception as e:
             logger.warning(f"摘要生成失败: {e}")
             return None
@@ -228,7 +253,7 @@ class SessionManager:
         try:
             from hybrid_agent.core.database import db_manager
             record = db_manager.get_conversation_summary(thread_id)
-            return record.summary if record else ""
+            return str(record.summary) if record else ""
         except Exception:
             return ""
 

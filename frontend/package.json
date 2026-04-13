@@ -1,0 +1,30 @@
+{
+  "name": "hybrid-agent-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "e2e": "E2E_API_BASE_URL=http://127.0.0.1:18000 E2E_API_HEALTH_URL=http://127.0.0.1:18000/health npm --prefix ../tests/e2e run test --",
+    "e2e:smoke": "E2E_API_BASE_URL=http://127.0.0.1:18000 E2E_API_HEALTH_URL=http://127.0.0.1:18000/health npm --prefix ../tests/e2e run test:smoke --",
+    "e2e:headed": "E2E_API_BASE_URL=http://127.0.0.1:18000 E2E_API_HEALTH_URL=http://127.0.0.1:18000/health npm --prefix ../tests/e2e run test:headed --",
+    "e2e:report": "npm --prefix ../tests/e2e run report"
+  },
+  "dependencies": {
+    "@vueuse/core": "^12.8.2",
+    "axios": "^1.8.4",
+    "element-plus": "^2.9.8",
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.1.0",
+    "pinia": "^2.3.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.51.1",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "vite": "^5.4.18"
+  }
+}

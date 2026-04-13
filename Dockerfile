@@ -18,13 +18,17 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
 COPY pyproject.toml uv.lock ./
+COPY alembic.ini ./
+COPY alembic ./alembic
 COPY src ./src
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN uv sync --frozen --no-dev
+RUN chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 8000 8501
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["uv", "run", "uvicorn", "hybrid_agent.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./docker-entrypoint.sh"]

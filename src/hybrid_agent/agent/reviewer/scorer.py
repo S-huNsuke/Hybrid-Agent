@@ -80,7 +80,7 @@ def parse_review_response(response: str) -> ReviewScore | None:
             should_use=data.get("should_use", True),
             key_info=data.get("key_info", []),
         )
-    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
         return None
 
 
@@ -101,7 +101,7 @@ def parse_batch_review_response(response: str) -> dict[str, Any] | None:
         if json_match:
             return json.loads(json_match.group())
         return json.loads(response)
-    except (json.JSONDecodeError, TypeError) as e:
+    except (json.JSONDecodeError, TypeError):
         return None
 
 

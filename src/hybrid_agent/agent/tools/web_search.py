@@ -1,7 +1,9 @@
 """网络搜索工具 - 集成内容审查"""
 
 import logging
-from requests import RequestException
+from typing import Any
+
+from requests import RequestException  # type: ignore[import-untyped]
 
 from langchain_core.tools import StructuredTool
 from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
@@ -68,7 +70,8 @@ def web_search_func(query: str, enable_review: bool = True) -> str:
                 title = item.get("title", "")
                 link = item.get("link", "")
                 content = item.get("content", "")
-                key_info = item.get("key_info", [])
+                raw_key_info: Any = item.get("key_info", [])
+                key_info = raw_key_info if isinstance(raw_key_info, list) else []
                 
                 output_parts.append(
                     f"【结果 {i}】(相关度: {score}/10)\n"
@@ -96,10 +99,10 @@ def web_search_func(query: str, enable_review: bool = True) -> str:
             
     except RequestException as e:
         logger.error(f"网络搜索请求失败: {str(e)}")
-        return f"搜索失败: 网络连接问题"
+        return "搜索失败: 网络连接问题"
     except (KeyError, ValueError, TypeError) as e:
         logger.error(f"搜索结果解析失败: {str(e)}")
-        return f"搜索失败: 数据解析错误"
+        return "搜索失败: 数据解析错误"
     except Exception as e:
         logger.error(f"搜索失败: {str(e)}")
         return f"搜索失败: {str(e)}"

@@ -1,13 +1,32 @@
 """RAG 服务层"""
 
+import uuid
 from typing import Any
 
+from hybrid_agent.core.database import db_manager
 from hybrid_agent.core.rag_system import get_rag_system
 from hybrid_agent.api.schemas import (
     RAGRequest,
     RAGResponse,
     DocumentAddResponse,
 )
+
+
+def _log_llm_usage(model_name: str | None) -> None:
+    if not db_manager:
+        return
+    entry_id = f"rag-{uuid.uuid4()}"
+    try:
+        db_manager.log_llm_usage(
+            log_id=entry_id,
+            user_id="anonymous",
+            model_name=model_name or "unknown",
+            prompt_tokens=0,
+            completion_tokens=0,
+            total_tokens=0,
+        )
+    except Exception:
+        pass
 
 
 async def process_rag_query(request: RAGRequest) -> RAGResponse:
@@ -20,6 +39,7 @@ async def process_rag_query(request: RAGRequest) -> RAGResponse:
             model=request.model,
             k=request.top_k
         )
+        _log_llm_usage(request.model)
         
         return RAGResponse(
             success=result.get("success", False),

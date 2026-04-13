@@ -2,14 +2,42 @@ from __future__ import annotations
 
 import os
 import logging
+from hashlib import sha256
+from math import sqrt
 
 from langchain_chroma import Chroma
 from langchain_community.embeddings import DashScopeEmbeddings
+from langchain_core.embeddings import Embeddings
 from langchain_core.documents import Document
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 
 from hybrid_agent.core.config import get_project_root, DEFAULT_SEARCH_K
 
 logger = logging.getLogger(__name__)
+
+
+class LocalHashEmbeddings(Embeddings):
+    """无外部依赖的本地 deterministic embedding fallback。"""
+
+    def __init__(self, dimension: int = 384) -> None:
+        self.dimension = dimension
+
+    def _embed(self, text: str) -> list[float]:
+        vector = [0.0] * self.dimension
+        for token in text.split():
+            digest = sha256(token.encode("utf-8")).digest()
+            index = int.from_bytes(digest[:4], "big") % self.dimension
+            sign = 1.0 if digest[4] % 2 == 0 else -1.0
+            vector[index] += sign
+
+        norm = sqrt(sum(value * value for value in vector)) or 1.0
+        return [value / norm for value in vector]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [self._embed(text) for text in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embed(text)
 
 
 class RAGConfig:
@@ -18,8 +46,12 @@ class RAGConfig:
         from hybrid_agent.core.config import settings
         self.tongyi_embedding_api_key = settings.tongyi_embedding_api_key
         self.tongyi_embedding_base_url = settings.tongyi_embedding_base_url
-        
-        self.chroma_db_path = str(get_project_root() / "chroma_db")
+        self.embedding_backend = settings.embedding_backend or "sentence_transformers"
+        self.embedding_model_name = (
+            settings.embedding_model_name or "sentence-transformers/all-MiniLM-L6-v2"
+        )
+        self.embedding_cache_dir = settings.embedding_cache_dir
+        self.chroma_db_path = settings.chroma_db_dir or str(get_project_root() / "chroma_db")
         self.collection_name = "documents"
 
 
@@ -27,15 +59,12 @@ class VectorStore:
     """向量存储检索器
 
     实现 RetrieverProtocol 协议。
-    基于 Chroma 和 DashScope Embedding 实现稠密向量检索。
+    基于 Chroma 和可配置 embedding backend 实现稠密向量检索。
     """
 
     def __init__(self, config: RAGConfig) -> None:
         self.config = config
-        self.embeddings = DashScopeEmbeddings(
-            dashscope_api_key=config.tongyi_embedding_api_key,
-            model="text-embedding-v4"
-        )
+        self.embeddings = self._build_embeddings()
         
         persist_directory = getattr(config, 'chroma_db_path', './chroma_db')
         collection_name = getattr(config, 'collection_name', 'documents')
@@ -47,6 +76,44 @@ class VectorStore:
             embedding_function=self.embeddings,
             persist_directory=persist_directory,
         )
+
+    def _build_embeddings(self):
+        """根据配置构建 embedding backend。"""
+        backend = (self.config.embedding_backend or "sentence_transformers").lower()
+
+        if backend == "dashscope":
+            logger.info("使用 DashScope embedding backend")
+            return DashScopeEmbeddings(
+                dashscope_api_key=self.config.tongyi_embedding_api_key,
+                model="text-embedding-v4",
+            )
+
+        cache_dir = self.config.embedding_cache_dir
+        if cache_dir:
+            os.makedirs(cache_dir, exist_ok=True)
+
+        logger.info("使用开源 embedding backend: %s", self.config.embedding_model_name)
+        try:
+            return HuggingFaceEmbeddings(
+                model_name=self.config.embedding_model_name,
+                cache_folder=cache_dir,
+            )
+        except Exception as exc:
+            if self.config.tongyi_embedding_api_key:
+                logger.warning(
+                    "开源 embedding 初始化失败，回退到 DashScopeEmbeddings: %s",
+                    exc,
+                )
+                return DashScopeEmbeddings(
+                    dashscope_api_key=self.config.tongyi_embedding_api_key,
+                    model="text-embedding-v4",
+                )
+
+            logger.warning(
+                "开源 embedding 初始化失败，回退到 LocalHashEmbeddings: %s",
+                exc,
+            )
+            return LocalHashEmbeddings()
     
     def add_documents(
         self, 
@@ -84,13 +151,21 @@ class VectorStore:
         self.vector_store.add_documents(documents=documents, ids=ids)
         return ids
     
-    def search(self, query: str, k: int = DEFAULT_SEARCH_K) -> list[Document]:
-        return self.vector_store.similarity_search(query=query, k=k)
-    
-    def search_with_score(self, query: str, k: int = DEFAULT_SEARCH_K) -> list[tuple]:
-        return self.vector_store.similarity_search_with_score(query=query, k=k)
+    def search(self, query: str, k: int = DEFAULT_SEARCH_K, group_id: str | None = None) -> list[Document]:
+        metadata_filter = self._build_filter(group_id)
+        kwargs: dict[str, dict[str, str]] = {}
+        if metadata_filter:
+            kwargs["filter"] = metadata_filter
+        return self.vector_store.similarity_search(query=query, k=k, **kwargs)
 
-    def search_with_metadata(self, query: str, k: int = DEFAULT_SEARCH_K) -> list[dict]:
+    def search_with_score(self, query: str, k: int = DEFAULT_SEARCH_K, group_id: str | None = None) -> list[tuple]:
+        metadata_filter = self._build_filter(group_id)
+        kwargs: dict[str, dict[str, str]] = {}
+        if metadata_filter:
+            kwargs["filter"] = metadata_filter
+        return self.vector_store.similarity_search_with_score(query=query, k=k, **kwargs)
+
+    def search_with_metadata(self, query: str, k: int = DEFAULT_SEARCH_K, group_id: str | None = None) -> list[dict]:
         """相似度搜索，返回包含完整 metadata（doc_id, chunk_id）的字典列表
 
         Args:
@@ -100,7 +175,11 @@ class VectorStore:
         Returns:
             list of {"content", "doc_id", "chunk_id", "metadata", "score", "retrieval_method"}
         """
-        results = self.vector_store.similarity_search_with_score(query=query, k=k)
+        metadata_filter = self._build_filter(group_id)
+        kwargs: dict[str, dict[str, str]] = {}
+        if metadata_filter:
+            kwargs["filter"] = metadata_filter
+        results = self.vector_store.similarity_search_with_score(query=query, k=k, **kwargs)
         output = []
         for doc, score in results:
             meta = doc.metadata or {}
@@ -113,6 +192,11 @@ class VectorStore:
                 "retrieval_method": "dense",
             })
         return output
+
+    def _build_filter(self, group_id: str | None) -> dict[str, str] | None:
+        if not group_id:
+            return None
+        return {"group_id": group_id}
     
     def delete(self, ids: list[str]) -> None:
         """删除指定 ID 的向量"""

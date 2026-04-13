@@ -1,0 +1,96 @@
+/* Design tokens: light theme defaults */
+:root {
+  color-scheme: light;
+
+  /* Typography */
+  --font-family-sans: "Readex Pro", "Avenir Next", "Segoe UI", sans-serif;
+  --font-family-serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  --font-size-12: 12px;
+  --font-size-14: 14px;
+  --font-size-16: 16px;
+  --font-size-20: 20px;
+  --font-size-24: 24px;
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+  --letter-spacing-wide: 0.16em;
+
+  /* Spacing */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-32: 32px;
+
+  /* Radii */
+  --radius-12: 12px;
+  --radius-16: 16px;
+  --radius-24: 24px;
+
+  /* Shadows */
+  --shadow-soft: 0 12px 28px rgba(68, 45, 23, 0.08);
+  --shadow-strong: 0 18px 40px rgba(68, 45, 23, 0.12);
+
+  /* Color primitives */
+  --color-amber-50: #fdf9f3;
+  --color-amber-100: #f6efe4;
+  --color-amber-200: #efe2d0;
+  --color-amber-300: #e5d2b8;
+  --color-amber-600: #a34c24;
+  --color-amber-700: #7a3e1f;
+
+  --color-ink-900: #1f160c;
+  --color-ink-700: #5e4f40;
+  --color-ink-500: #786957;
+
+  /* Semantic colors */
+  --color-bg: #f5f1ea;
+  --color-surface: rgba(255, 252, 247, 0.92);
+  --color-surface-strong: #fffdf9;
+  --color-surface-muted: rgba(255, 249, 241, 0.72);
+  --color-border: rgba(71, 53, 31, 0.12);
+  --color-text: #24190d;
+  --color-muted: var(--color-ink-500);
+  --color-accent: var(--color-amber-600);
+  --color-accent-soft: #f0d7c4;
+
+  /* Gradients */
+  --gradient-surface: radial-gradient(circle at top left, rgba(201, 122, 80, 0.18), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(138, 102, 62, 0.18), transparent 28%),
+    linear-gradient(135deg, #efe7db 0%, #f8f5ef 50%, #efe2d0 100%);
+
+  /* Legacy aliases for existing selectors */
+  --bg: var(--color-bg);
+  --panel: var(--color-surface);
+  --panel-strong: var(--color-surface-strong);
+  --line: var(--color-border);
+  --text: var(--color-text);
+  --muted: var(--color-muted);
+  --accent: var(--color-accent);
+  --accent-soft: var(--color-accent-soft);
+  --shadow: var(--shadow-strong);
+}
+
+/* Dark theme overrides */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: #14110c;
+  --color-surface: rgba(29, 23, 16, 0.88);
+  --color-surface-strong: #1f1a14;
+  --color-surface-muted: rgba(24, 19, 13, 0.82);
+  --color-border: rgba(210, 177, 135, 0.14);
+  --color-text: #f1e8db;
+  --color-muted: #c7b7a1;
+  --color-accent: #e6a068;
+  --color-accent-soft: rgba(230, 160, 104, 0.18);
+
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow-strong: 0 18px 50px rgba(0, 0, 0, 0.45);
+
+  --gradient-surface: radial-gradient(circle at top left, rgba(230, 160, 104, 0.12), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(122, 90, 58, 0.18), transparent 28%),
+    linear-gradient(135deg, #14100b 0%, #1b140e 50%, #16110c 100%);
+}

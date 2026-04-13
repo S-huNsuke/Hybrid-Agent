@@ -1,0 +1,3 @@
+Hybrid-Agent E2E Smoke Fixture
+
+This is a short document used by Playwright smoke tests.

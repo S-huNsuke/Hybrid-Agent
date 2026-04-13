@@ -2,7 +2,6 @@
 
 import streamlit as st
 
-from hybrid_agent.web.components.theme import get_theme_css
 from hybrid_agent.web.utils.helpers import sanitize_user_content
 
 

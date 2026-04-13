@@ -4,7 +4,7 @@ import uuid
 
 import streamlit as st
 
-from hybrid_agent.agent.builder import build_agent, get_agent_instance, get_tools
+from hybrid_agent.agent.builder import get_agent_instance
 from hybrid_agent.core.rag_system import get_rag_system
 from hybrid_agent.core.config import DEFAULT_SEARCH_K
 from hybrid_agent.llm.model_selector import resolve_model_type
@@ -19,7 +19,7 @@ from hybrid_agent.web.components import (
 
 def init_session_state() -> None:
     """初始化 session state"""
-    defaults = {
+    defaults: dict[str, object] = {
         "agent": None,
         "messages": [],
         "documents": [],
@@ -68,7 +68,6 @@ def handle_rag_query(prompt: str) -> None:
     
     model_type = resolve_model_type(selected_model)
     
-    placeholder = st.empty()
     display_thinking_indicator()
     
     try:

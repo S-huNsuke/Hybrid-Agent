@@ -1,0 +1,23 @@
+groups:
+  - name: hybrid-agent-base
+    interval: 30s
+    rules:
+      - alert: HybridAgentApiDown
+        expr: up{job="hybrid-agent"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: api
+        annotations:
+          summary: "Hybrid-Agent API is down"
+          description: "Prometheus cannot scrape the Hybrid-Agent API for more than 2 minutes."
+
+      - alert: HybridAgentHigh5xxRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: api
+        annotations:
+          summary: "Hybrid-Agent API 5xx rate is elevated"
+          description: "The Hybrid-Agent API is returning 5xx responses above the warning threshold."

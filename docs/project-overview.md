@@ -65,31 +65,20 @@
 
 ```
 Hybrid-Agent/
-├── src/hybrid_agent/
+├── src/hybrid_agent/              # Python 主代码
 │   ├── agent/                     # Agent 层（LangGraph 编排）
-│   │   ├── agentic_rag_graph.py   # Agentic RAG StateGraph（核心流程）
-│   │   ├── builder.py             # Agent 工厂，管理 TTLCache 实例
-│   │   ├── reviewer/              # ContentReviewer（SELF-RAG 评估）
-│   │   └── tools/                 # StructuredTool 工具集
+│   ├── api/                       # FastAPI 服务层（auth/admin/providers/routes）
+│   ├── cli/                       # CLI 交互入口
 │   ├── core/                      # RAG 核心引擎
-│   │   ├── rag_system.py          # 文档管理 + 检索入口
-│   │   ├── hybrid_retriever.py    # 四路混合检索 + RRF 融合
-│   │   ├── query_understanding.py # 意图分类 + HyDE + 子问题分解
-│   │   ├── reranker.py            # 重排序（DashScope / 降级）
-│   │   ├── vector.py              # ChromaDB 向量存储封装
-│   │   ├── database.py            # SQLAlchemy 模型（含 BM25 表）
-│   │   ├── document_processor.py  # 多格式文档加载与分割
-│   │   ├── session_manager.py     # 会话 TTLCache + 摘要压缩
-│   │   ├── config.py              # 配置常量与环境变量
-│   │   └── protocols.py           # 协议接口定义
-│   ├── llm/
-│   │   ├── models.py              # LLM 实例（Qwen3 / DeepSeek）
-│   │   ├── model_selector.py      # 复杂度驱动的自动模型选择
-│   │   └── reviewer.py            # 审查专用模型
-│   ├── api/                       # FastAPI 服务层
-│   ├── web/                       # Streamlit Web 应用
-│   └── cli/                       # CLI 交互入口
-├── tests/
+│   ├── llm/                       # 模型解析与选择
+│   └── web/                       # Streamlit Web 应用
+├── frontend/                      # Vue 3 前端
+├── tests/                         # Python + E2E 测试
+├── docs/                          # 架构、规范、计划文档
+├── scripts/                       # 检查与辅助脚本
+├── alembic/                       # 数据库迁移
+├── grafana/                       # Grafana provisioning / dashboards
+├── prometheus/                    # Prometheus 配置与规则
 ├── pyproject.toml
 ├── Dockerfile
 └── docker-compose.yml
@@ -242,15 +231,19 @@ score(d) = Σ 1/(k + rank_i(d))   k = 60
 
 ## 6. 数据库设计
 
-```
-SQLite 数据库（documents.db）
-├── documents          # 文档元数据（doc_id, filename, file_type, size...）
-├── chunks             # 文本块（chunk_id, doc_id, content, chunk_index）
-├── bm25_chunks        # BM25 索引（doc_id, content, metadata JSON）
-└── conversation_summaries  # 会话摘要（session_id, summary, message_count）
+```text
+DATABASE_URL / SQLite fallback
+├── documents               # 文档元数据
+├── bm25_chunks             # BM25 稀疏索引
+├── conversation_summaries  # 会话摘要
+├── users / groups          # 认证与组织
+├── user_groups             # 成员关系
+├── chat_sessions           # 会话持久化
+├── llm_usage_logs          # 使用日志
+└── providers               # Provider 配置
 
-ChromaDB（./chroma_db/）
-└── 向量集合           # chunk embedding（text-embedding-v4 维度）
+ChromaDB（本地开发默认）
+└── 向量集合                # 文档块 embedding
 ```
 
 ---
@@ -262,12 +255,13 @@ ChromaDB（./chroma_db/）
 | 方法 | 路径 | 功能 |
 |------|------|------|
 | GET | `/health` | 健康检查 |
-| POST | `/api/chat` | 聊天（支持流式 SSE） |
-| POST | `/api/documents/upload` | 上传文档 |
-| GET | `/api/documents` | 列出所有文档 |
-| GET | `/api/documents/{doc_id}` | 获取文档详情 |
-| DELETE | `/api/documents/{doc_id}` | 删除文档 |
-| GET | `/api/models` | 获取可用模型列表 |
+| POST | `/api/v1/chat` | 聊天（支持流式 SSE） |
+| GET | `/api/v1/chat/sessions` | 会话列表 |
+| POST | `/api/v1/documents/upload` | 上传文档 |
+| GET | `/api/v1/documents` | 列出所有文档 |
+| DELETE | `/api/v1/documents/{doc_id}` | 删除文档 |
+| GET | `/api/v1/models` | 获取运行时模型列表 |
+| GET/POST | `/api/v1/providers` | Provider 管理 |
 
 ### 安全机制
 
@@ -314,16 +308,16 @@ ALLOWED_ORIGINS=...           # CORS 允许来源
 
 ```bash
 # CLI 模式
-python main.py
+uv run hybrid-agent
 
 # API 服务
-PYTHONPATH=src uvicorn hybrid_agent.api.main:app --host 0.0.0.0 --port 8000
+PYTHONPATH=src uv run uvicorn hybrid_agent.api.main:app --host 0.0.0.0 --port 8000
 
 # Web UI
-PYTHONPATH=src streamlit run src/hybrid_agent/web/app.py
+PYTHONPATH=src uv run streamlit run src/hybrid_agent/web/app.py
 
 # Docker
-docker-compose up -d
+docker compose up -d
 ```
 
 ---

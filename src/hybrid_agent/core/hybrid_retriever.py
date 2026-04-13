@@ -17,17 +17,16 @@ import asyncio
 import json
 import logging
 import threading
-import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from rank_bm25 import BM25Okapi
 
 from hybrid_agent.core.database import BM25ChunkModel, db_manager
-from hybrid_agent.core.vector import VectorStore, RAGConfig
+from hybrid_agent.core.vector import VectorStore
 from hybrid_agent.core.config import RRF_K, RETRIEVE_K_PER_PATH
 
 if TYPE_CHECKING:
-    from langchain_core.documents import Document
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -60,17 +59,22 @@ class BM25Retriever:
         self._corpus: list[str] = []        # 原始文本
         self._chunk_ids: list[str] = []     # 对应 chunk_id
         self._doc_ids: list[str] = []       # 对应 doc_id
+        self._chunk_group_ids: list[str | None] = []  # 对应 chunk 的 group_id
         self._bm25: BM25Okapi | None = None
         self._dirty = True  # 标记索引是否需要重建
+        self._group_filter: str | None = None
         self._lock = threading.Lock()       # 保护索引重建与检索
 
-    def _rebuild_index(self) -> None:
+    def _rebuild_index(self, group_id: str | None) -> None:
         """从数据库重建 BM25 索引"""
         chunks = db_manager.get_all_bm25_chunks()
+        if group_id:
+            chunks = [chunk for chunk in chunks if chunk.group_id == group_id]
         if not chunks:
             self._corpus = []
             self._chunk_ids = []
             self._doc_ids = []
+            self._chunk_group_ids = []
             self._bm25 = None
             self._dirty = False
             return
@@ -83,19 +87,21 @@ class BM25Retriever:
         for c in chunks:
             if c.tokens:
                 try:
-                    tokens = json.loads(c.tokens)
+                    tokens = json.loads(cast(str, c.tokens))
                 except (json.JSONDecodeError, TypeError):
-                    tokens = _bigram_tokenize(c.content)
+                    tokens = _bigram_tokenize(cast(str, c.content))
             else:
-                tokens = _bigram_tokenize(c.content)
+                tokens = _bigram_tokenize(cast(str, c.content))
 
             corpus_tokens.append(tokens)
-            self._corpus.append(c.content)
-            self._chunk_ids.append(c.id)
-            self._doc_ids.append(c.doc_id)
+            self._corpus.append(cast(str, c.content))
+            self._chunk_ids.append(cast(str, c.id))
+            self._doc_ids.append(cast(str, c.doc_id))
+            self._chunk_group_ids.append(cast(str, c.group_id) if c.group_id else None)
 
         self._bm25 = BM25Okapi(corpus_tokens)
         self._dirty = False
+        self._group_filter = group_id
         logger.debug(f"BM25 索引重建完成，共 {len(chunks)} 个文本块")
 
     def index_chunks(self, doc_id: str, chunks: list[str], chunk_ids: list[str] | None = None) -> None:
@@ -125,6 +131,7 @@ class BM25Retriever:
         db_manager.add_bm25_chunks(models)
         with self._lock:
             self._dirty = True
+            self._group_filter = None
         logger.debug(f"BM25 已索引文档 {doc_id}，共 {len(chunks)} 块")
 
     def delete_chunks(self, doc_id: str) -> int:
@@ -139,10 +146,11 @@ class BM25Retriever:
         count = db_manager.delete_bm25_chunks(doc_id)
         with self._lock:
             self._dirty = True
+            self._group_filter = None
         logger.debug(f"BM25 已删除文档 {doc_id} 的 {count} 个块")
         return count
 
-    def search(self, query: str, k: int = RETRIEVE_K_PER_PATH) -> list[dict]:
+    def search(self, query: str, k: int = RETRIEVE_K_PER_PATH, group_id: str | None = None) -> list[dict]:
         """BM25 检索
 
         Args:
@@ -153,8 +161,8 @@ class BM25Retriever:
             list of {"content", "doc_id", "chunk_id", "score", "retrieval_method"}
         """
         with self._lock:
-            if self._dirty:
-                self._rebuild_index()
+            if self._dirty or self._group_filter != group_id:
+                self._rebuild_index(group_id)
 
             if self._bm25 is None or not self._corpus:
                 return []
