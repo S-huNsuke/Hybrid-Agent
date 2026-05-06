@@ -19,7 +19,7 @@ import logging
 import threading
 from typing import TYPE_CHECKING, cast
 
-from rank_bm25 import BM25Okapi
+from rank_bm25 import BM25Okapi  # type: ignore[import-untyped]
 
 from hybrid_agent.core.database import BM25ChunkModel, db_manager
 from hybrid_agent.core.vector import VectorStore

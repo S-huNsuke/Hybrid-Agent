@@ -4,13 +4,13 @@
 - **Backend** is a FastAPI service defined in `src/hybrid_agent/api/main.py`. Primary routes are versioned under `/api/v1`, with legacy `/api/*` bridges retained for compatibility. JWT auth, RBAC, provider management, document upload tasks, and chat session endpoints are already mounted.
 - **Core services** live under `src/hybrid_agent/core/`. They include `document_processor`, `hybrid_retriever` (BM25 + vector + HyDE), `vector.py` (Chroma wrapper), `rag_system` (document ingestion), and supporting utilities such as `session_manager`.
 - **Agent layer** (`src/hybrid_agent/agent/`) hosts the LangGraph-based `agentic_rag_graph` plus `builder`. API chat still mixes `RAGSystem` and Agent paths, but model/runtime selection is now shared through the LLM selector contract.
-- **Web UI** is a Streamlit app under `src/hybrid_agent/web/`, used for demos. It currently imports `core/` (and the reviewer utility from `agent/`) directly rather than calling `/api/*`; future Vue frontend under `frontend/` will interact via HTTP.
+- **Web UI** is a Vue 3 SPA under `frontend/`, communicating with the FastAPI backend exclusively via HTTP/Axios. There is no longer a Python-side web module.
 - **CLI** entrypoints in `main.py` and `src/hybrid_agent/cli/` provide alternative interfaces to the same backend logic.
 
 ## 2. Logical Layers and Data Flow
 ```
-CLI/Web Streamlit
-       ↓
+Vue 3 SPA (frontend/)   CLI
+       ↓                  ↓
    API layer (/api/v1/*) ← FastAPI
        ↓
    Service layer (core/ + agent/)  ← manages documents, vector store, hybrid retrieval
@@ -18,21 +18,20 @@ CLI/Web Streamlit
    Persistence layer (DATABASE_URL / SQLite fallback + Chroma collection)
 ```
 - `core/` exposes retrieval services (BM25 + Chroma + HyDE) and document management while remaining independent of API routing.
-- `agent/` currently orchestrates advanced reasoning flows but must not be imported from `core/` (relationship is unidirectional: `agent` consumes `core`, not vice versa).
+- `agent/` orchestrates advanced reasoning flows but must not be imported from `core/` (relationship is unidirectional: `agent` consumes `core`, not vice versa).
 - API routes consume services in `core/` (and eventually `agent/`), but must not directly depend on ORM or the low-level SQLite file.
-- `web/` currently bypasses the FastAPI layer and imports `core/` / `agent/` directly. Treat this as the current-state exception for the Streamlit demo, not as the long-term target architecture.
-- `frontend/` is isolated; it communicates with FastAPI endpoints via HTTP/Axios and never imports Python modules from `src/`.
+- `frontend/` communicates with FastAPI endpoints via HTTP/Axios and never imports Python modules from `src/`.
 
 ## 3. Dependency Constraints
-- `core/` must not import from `agent/` except for the reviewed exception `hybrid_agent.agent.reviewer` that exists temporarily for Streamlit’s review step (see `tests/test_architecture.py` for the fixture). This ensures the directed dependency graph remains enforceable.
+- `core/` must not import from `agent/` except for the whitelisted case `hybrid_agent.agent.reviewer` used by `core/reranker.py` (see `tests/test_architecture.py`). This ensures the directed dependency graph remains enforceable.
 - `api/` routes must not reach into `core/database.py` or any repository-level module; they should only call service helpers (`rag_system`, `document_processor`, etc.).
-- `cli/` should continue to consume public entrypoints rather than low-level internals. `web/` is currently an exception because the Streamlit demo has not yet been moved behind the API boundary.
-- `frontend/` is currently decoupled; when the Vue app takes over, it must continue to interact through HTTP routes, not shared imports.
+- `cli/` should continue to consume public entrypoints rather than low-level internals.
+- `frontend/` interacts through HTTP routes exclusively and never imports Python modules.
 - `docs/conventions.md` defines naming, docstring, and type-annotation expectations that cut across layers.
 
 ## 4. Operational Notes
 - FastAPI app is launched via `uv run uvicorn hybrid_agent.api.main:app ...` with CORS explicitly allowing localhost pairs. There is no `uvicorn` supervisor yet, so use `uv` for consistency.
-- Streamlit UI runs via `uv run streamlit run src/hybrid_agent/web/app.py`.
+- Vue 3 frontend is launched via `cd frontend && npm run dev` or via `./start.sh` which boots both backend and frontend together.
 - CLI entrypoint `main.py` uses `HybridAgent` class (not yet fully synced with new agentic graph).
 - Tests cover query understanding, RRF merging, session management, and the existing architecture guard in `tests/test_architecture.py`, which enforces the `core` → `agent` boundary with a reviewer whitelist.
 

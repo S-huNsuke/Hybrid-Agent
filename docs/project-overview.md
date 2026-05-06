@@ -313,8 +313,11 @@ uv run hybrid-agent
 # API 服务
 PYTHONPATH=src uv run uvicorn hybrid_agent.api.main:app --host 0.0.0.0 --port 8000
 
-# Web UI
-PYTHONPATH=src uv run streamlit run src/hybrid_agent/web/app.py
+# Vue 前端（开发模式）
+cd frontend && npm run dev -- --host 0.0.0.0 --port 3000
+
+# 一键启动（后端 + Vue 前端）
+./start.sh
 
 # Docker
 docker compose up -d

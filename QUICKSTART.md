@@ -23,14 +23,14 @@ uv run uvicorn hybrid_agent.api.main:app --reload --host 0.0.0.0 --port 8000
 # http://localhost:8000/docs
 ```
 
-### 3. Web 界面模式
+### 3. Vue 前端 + API 模式（推荐）
 
 ```bash
-# 启动 Streamlit Web 应用
-export PYTHONPATH="$(pwd)/src"
-uv run streamlit run src/hybrid_agent/web/app.py
+# 一键启动（后端 API + Vue 前端）
+./start.sh
 
-# http://localhost:8501
+# 后端 API:  http://localhost:8000
+# Vue 前端:  http://localhost:3000
 ```
 
 ### 4. Docker 部署模式
@@ -47,7 +47,7 @@ docker compose up -d
 # 访问服务
 # API: http://localhost:8000
 # API 文档: http://localhost:8000/docs
-# Web 界面: http://localhost:8501
+# Vue 前端: http://localhost:3000
 
 # 查看日志
 docker compose logs -f

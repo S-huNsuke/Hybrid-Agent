@@ -17,7 +17,6 @@ dependencies = [
     "sqlalchemy>=2.0.48",
     "sentence-transformers>=3.0.0",
     "sympy>=1.14.0",
-    "streamlit>=1.55.0",
     "chromadb>=0.4.22",
     "langchain-chroma>=0.1.0",
     "pypdf>=3.17.0",
@@ -63,3 +62,10 @@ include = ["hybrid_agent*"]
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = [
+    "types-cachetools>=7.0.0.20260503",
+    "types-passlib>=1.7.7.20260211",
+    "types-python-jose>=3.5.0.20260408",
+]

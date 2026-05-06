@@ -49,6 +49,7 @@ QUICKSTART.md
 
 start.sh
 *.sh
+!docker-entrypoint.sh
 
 data/
 logs/

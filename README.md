@@ -25,7 +25,7 @@ Hybrid-Agent 是一个基于 **Agentic RAG**（智能体增强检索）的智能
 - **RAG 知识库**：支持批量上传、任务进度轮询、失败原因查看与重试、列表搜索/筛选/排序
 - **流式输出**：实时展示 AI 思考过程和回答内容
 - **多模型支持**：集成了 Qwen 和 DeepSeek 等多种 AI 模型
-- **多端支持**：提供 CLI、API 和 Streamlit Web 界面
+- **多端支持**：提供 CLI、API 和 Vue 3 Web 界面
 - **内容审查**：内置回答质量审查机制
 - **Docker 支持**：支持 Docker 部署
 
@@ -46,7 +46,7 @@ cd frontend && npm run e2e:smoke
 - DashScope (阿里云) / Sentence Transformers
 - ChromaDB (向量数据库)
 - FastAPI (API 服务)
-- Streamlit (Web 界面)
+- Vue 3 + Vite (Web 界面)
 - Docker / Docker Compose
 
 ## 快速开始
@@ -85,14 +85,7 @@ export PYTHONPATH="$(pwd)/src"
 uv run uvicorn hybrid_agent.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-#### Web 界面模式
-
-```bash
-export PYTHONPATH="$(pwd)/src"
-uv run streamlit run src/hybrid_agent/web/app.py
-```
-
-#### 一键启动（本地演示）
+#### 一键启动（后端 + Vue 前端）
 
 ```bash
 chmod +x start.sh
@@ -102,17 +95,7 @@ chmod +x start.sh
 启动后访问：
 - API: http://localhost:8000
 - API 文档: http://localhost:8000/docs
-- Web: http://localhost:8501
-
-如果你使用 Vue 前端工作台：
-
-```bash
-cd frontend
-npm install
-npm run dev -- --host 127.0.0.1 --port 3000
-```
-
-访问 `http://127.0.0.1:3000`。
+- Vue 前端: http://localhost:3000
 
 ### 4. Docker 部署
 
@@ -207,7 +190,6 @@ Hybrid-Agent/
 │   ├── cli/                        # CLI 入口
 │   ├── core/                       # RAG / DB / retriever / 文档处理
 │   ├── llm/                        # 模型解析与选择
-│   └── web/                        # Streamlit 演示界面
 ├── frontend/                       # Vue 3 前端
 │   ├── src/
 │   │   ├── api/                    # Axios API 封装
@@ -310,7 +292,7 @@ EMBEDDING_CACHE_DIR='./.cache/huggingface'
 API_KEY='your_api_key'
 
 # CORS
-ALLOWED_ORIGINS='http://localhost:3000,http://localhost:8501'
+ALLOWED_ORIGINS='http://localhost:3000'
 ```
 
 切换 embedding backend 或 embedding 模型后，建议清空本地向量库并重新导入文档，否则旧向量与新模型不兼容。

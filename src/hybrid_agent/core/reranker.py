@@ -32,7 +32,7 @@ def _dashscope_rerank(
         重排结果列表 [{"index": int, "relevance_score": float}]，失败返回 None
     """
     try:
-        from dashscope import TextReRank
+        from dashscope import TextReRank  # type: ignore[import-untyped]
 
         resp = TextReRank.call(
             model="gte-rerank",

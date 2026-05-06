@@ -1,6 +1,5 @@
 """RRF 融合算法单元测试"""
 
-import pytest
 from hybrid_agent.core.hybrid_retriever import _rrf_merge
 
 

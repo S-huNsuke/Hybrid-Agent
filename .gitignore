@@ -22,6 +22,7 @@ wheels/
 
 # Data files
 chroma_db/
+chroma_db.bak*/
 documents.db
 *.db
 uploads/

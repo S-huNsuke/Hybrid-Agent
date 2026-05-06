@@ -29,7 +29,7 @@ app = FastAPI(title="Hybrid-Agent API", version="1.0.0")
 # CORS 配置
 allowed_origins = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:5173,http://localhost:8501,http://127.0.0.1:5173,http://127.0.0.1:8501",
+    "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173",
 ).split(",")
 if "*" in allowed_origins:
     allowed_origins = ["*"]
@@ -187,8 +187,8 @@ def _build_runtime_models_payload(
             merged.setdefault(model.id, model)
         return list(merged.values())
 
-    group_id = _resolve_optional_group_id(token_data, requested_group_id)
-    return [ModelInfo(**item) for item in list_runtime_models(group_id=group_id)]
+    resolved_group_id: str | None = _resolve_optional_group_id(token_data, requested_group_id)
+    return [ModelInfo(**item) for item in list_runtime_models(group_id=resolved_group_id)]
 
 
 @api_v1_router.get("/models", response_model=list[ModelInfo])

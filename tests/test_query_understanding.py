@@ -1,7 +1,6 @@
 """查询理解模块单元测试"""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from hybrid_agent.core.query_understanding import (
     IntentRouter,
     HyDERewriter,

@@ -1,10 +1,10 @@
 # Hybrid-Agent — Repo Guide
 
 ## 当前事实
-- 主代码位于 `src/hybrid_agent/`，按 `agent/`、`api/`、`cli/`、`core/`、`llm/`、`web/` 分层。
-- 前端位于 `frontend/`，使用 Vue 3 + Vite。
+- 主代码位于 `src/hybrid_agent/`，按 `agent/`、`api/`、`cli/`、`core/`、`llm/` 分层。
+- 前端位于 `frontend/`，使用 Vue 3 + Vite，通过 HTTP 与 FastAPI 通信。
 - 后端主入口为 `src/hybrid_agent/api/main.py`，主 API 路径为 `/api/v1/*`；旧 `/api/*` 仅保留兼容桥接。
-- 项目同时保留 CLI、FastAPI、Streamlit 三种入口。
+- 项目保留 CLI 和 FastAPI + Vue 两种入口，Streamlit 已移除。
 
 ## 根目录约定
 - 根目录只保留入口级文档与工程配置：
@@ -28,9 +28,11 @@ uv run hybrid-agent
 export PYTHONPATH="$(pwd)/src"
 uv run uvicorn hybrid_agent.api.main:app --reload --host 0.0.0.0 --port 8000
 
-# Streamlit
-export PYTHONPATH="$(pwd)/src"
-uv run streamlit run src/hybrid_agent/web/app.py
+# Vue 前端（开发模式）
+cd frontend && npm run dev -- --host 0.0.0.0 --port 3000
+
+# 一键启动（后端 + Vue 前端）
+./start.sh
 
 # Docker
 docker compose up -d

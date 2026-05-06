@@ -8,10 +8,9 @@
 - **Configuration**: `dotenv` values should be read via helper functions (`core/config.py`). Avoid hard-coded secrets; reference `ENV` names such as `API_KEY`, `CHROMA_DB_DIR`, etc.
 - **Execution**: Always launch Python via `uv run ...` so we capture the sanctioned dependency graph. Do not run `python -m uvicorn ...` directly when invoking the FastAPI app.
 
-## Frontend (Vue + Streamlit)
-- **Vue**: All new Vue code lives under `frontend/`. Use `<script setup>` and the Composition API. Files should be PascalCase. Shared state belongs in Pinia stores, never in standalone modules that import backend code.
-- **Streamlit**: The existing UI under `src/hybrid_agent/web/` is purely for demos. It may import from `core/` but still must follow Python docstring and type-hint rules.
-- **HTTP contracts**: The Vue 3 frontend under `frontend/` must fetch data through `/api/*` endpoints with Axios interceptors handling auth headers. The Streamlit demo under `src/hybrid_agent/web/` currently imports `core/` services directly rather than relying on HTTP, which reflects today’s single-tenant execution path.
+## Frontend (Vue 3)
+- **Vue**: All frontend code lives under `frontend/`. Use `<script setup>` and the Composition API. Files should be PascalCase. Shared state belongs in Pinia stores, never in standalone modules that import backend code.
+- **HTTP contracts**: The Vue 3 frontend must fetch data through `/api/*` endpoints with Axios interceptors handling auth headers. It must never import Python modules from `src/`.
 
 ## CSS & Assets
 - **Variable-driven theming**: Favor CSS variables for colors, spacing, and elevation. Avoid hard-coded hex values; instead define them in `frontend/src/assets/tokens.css` (once M10 begins).

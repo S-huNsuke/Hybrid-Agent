@@ -1,7 +1,6 @@
 """会话管理模块单元测试"""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from hybrid_agent.core.session_manager import (
     SessionManager,
     get_session_manager,
